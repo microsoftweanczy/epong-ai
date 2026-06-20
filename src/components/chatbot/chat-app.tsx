@@ -31,11 +31,11 @@ export default function ChatApp() {
       ;(window as any).__ariaBackend = b
       if (b === 'local' && reason === 'supabase-unavailable') {
         toast.warning(
-          'Supabase tables not found — saving locally for now. Run the SQL schema in your Supabase dashboard to enable cloud sync.',
+          'Tabel Supabase belum ditemukan — menyimpan secara lokal untuk sekarang. Jalankan skema SQL di dashboard Supabase Anda untuk mengaktifkan sinkronisasi cloud.',
           { duration: 9000 }
         )
       } else if (b === 'supabase') {
-        toast.success('Connected to Supabase ✓', { duration: 3000 })
+        toast.success('Terhubung ke Supabase ✓', { duration: 3000 })
       }
     })
   }, [])
@@ -145,7 +145,7 @@ export default function ChatApp() {
       // ensure a conversation — title it from the first user message
       let convId = activeId
       if (!convId) {
-        const title = text.slice(0, 42).trim() || 'New Chat'
+        const title = text.slice(0, 42).trim() || 'Obrolan Baru'
         try {
           const conv = await store.createConversation(title)
           convId = conv.id
@@ -300,7 +300,7 @@ export default function ChatApp() {
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 sm:hidden"
-            aria-label="Open conversations"
+            aria-label="Buka obrolan"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -312,7 +312,7 @@ export default function ChatApp() {
           <button
             onClick={handleNew}
             className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5"
-            aria-label="New chat"
+            aria-label="Obrolan baru"
           >
             <SquarePen className="h-5 w-5" />
           </button>
@@ -328,7 +328,7 @@ export default function ChatApp() {
             <MessageList messages={messages} streamingId={streamingId} />
             {loadingMsgs && messages.length === 0 && (
               <div className="flex items-center justify-center py-10 text-sm text-slate-400">
-                Loading conversation…
+                Memuat obrolan…
               </div>
             )}
           </>

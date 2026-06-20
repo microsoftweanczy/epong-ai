@@ -44,7 +44,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
               }
             }}
             rows={1}
-            placeholder="Message Epong AI…"
+            placeholder="Tulis pesan untuk Epong AI…"
             enterKeyHint="send"
             disabled={disabled}
             className="max-h-40 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-50"
@@ -53,7 +53,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
         {busy ? (
           <button
             onClick={onStop}
-            aria-label="Stop generating"
+            aria-label="Hentikan"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg transition hover:bg-slate-700 active:scale-95"
           >
             <Square className="h-4 w-4 fill-current" />
@@ -62,7 +62,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
           <button
             onClick={submit}
             disabled={!value.trim() || disabled}
-            aria-label="Send message"
+            aria-label="Kirim pesan"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0A84FF] to-[#0064D6] text-white shadow-lg shadow-[#0A84FF]/30 transition hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:shadow-none"
           >
             <ArrowUp className="h-5 w-5" />

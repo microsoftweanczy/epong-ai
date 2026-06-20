@@ -4,28 +4,28 @@ import { Logo } from './logo'
 
 const SUGGESTIONS = [
   {
-    title: 'Plan my day',
-    subtitle: 'Help me structure a productive morning',
+    title: 'Rencanakan hariku',
+    subtitle: 'Bantu susun pagi yang produktif',
     prompt:
-      'Help me plan a productive day. I usually wake up at 7am — suggest a balanced schedule with focus blocks, breaks, and exercise.',
+      'Bantu aku merencanakan hari yang produktif. Aku biasanya bangun jam 7 pagi — beri saran jadwal yang seimbang dengan blok fokus, istirahat, dan olahraga.',
   },
   {
-    title: 'Explain a concept',
-    subtitle: 'Make quantum computing simple',
+    title: 'Jelaskan sebuah konsep',
+    subtitle: 'Buat komputasi kuantum jadi sederhana',
     prompt:
-      'Explain quantum computing to me like I am a curious beginner. Use a simple analogy and keep it under 150 words.',
+      'Jelaskan komputasi kuantum kepadaku seperti aku seorang pemula yang penasaran. Gunakan analogi sederhana dan jaga agar di bawah 150 kata.',
   },
   {
-    title: 'Write something',
-    subtitle: 'Draft a kind message to a friend',
+    title: 'Tulis sesuatu',
+    subtitle: 'Buat pesan ramah untuk seorang teman',
     prompt:
-      'Help me write a warm, short message to check in on a friend I have not spoken to in a while.',
+      'Bantu aku menulis pesan singkat yang hangat untuk menyapa teman yang sudah lama tidak aku hubungi.',
   },
   {
-    title: 'Brainstorm ideas',
-    subtitle: 'Weekend project ideas',
+    title: 'Curahkan ide',
+    subtitle: 'Ide proyek akhir pekan',
     prompt:
-      'Give me 5 fun, achievable weekend project ideas I can build with basic coding skills. Briefly describe each.',
+      'Beri aku 5 ide proyek akhir pekan yang seru dan bisa dicapai dengan keterampilan coding dasar. Jelaskan singkat masing-masing.',
   },
 ]
 
@@ -40,10 +40,11 @@ export function Welcome({ onPick }: Props) {
         <Logo size={72} />
       </div>
       <h1 className="text-[28px] font-semibold tracking-tight text-slate-800">
-        How can I help?
+        Ada yang bisa saya bantu?
       </h1>
       <p className="mt-2 max-w-sm text-center text-[15px] text-slate-500">
-        Ask me anything — I can plan, write, explain, brainstorm, and more.
+        Tanyakan apa saja — saya bisa merencanakan, menulis, menjelaskan,
+        memberi ide, dan lainnya.
       </p>
 
       <div className="mt-8 grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">

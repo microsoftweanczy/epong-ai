@@ -70,7 +70,7 @@ export function Sidebar({
             <button
               onClick={onClose}
               className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-900/5 sm:hidden"
-              aria-label="Close sidebar"
+              aria-label="Tutup sidebar"
             >
               <X className="h-5 w-5" />
             </button>
@@ -83,7 +83,7 @@ export function Sidebar({
               className="tap-feedback flex w-full items-center gap-2 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-4 py-2.5 text-[15px] font-medium text-white shadow-md shadow-[#0A84FF]/25 hover:brightness-110"
             >
               <Plus className="h-5 w-5" />
-              New Chat
+              Obrolan Baru
             </button>
           </div>
 
@@ -91,9 +91,9 @@ export function Sidebar({
           <div className="thin-scrollbar flex-1 overflow-y-auto px-2 pb-2">
             {conversations.length === 0 && (
               <div className="px-3 py-8 text-center text-sm text-slate-400">
-                No conversations yet.
+                Belum ada obrolan.
                 <br />
-                Start a new chat to begin.
+                Mulai obrolan baru untuk memulai.
               </div>
             )}
             {conversations.map((c) => {
@@ -139,14 +139,14 @@ export function Sidebar({
                       <button
                         onClick={() => startEdit(c)}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-900/10 hover:text-slate-600"
-                        aria-label="Rename"
+                        aria-label="Ganti nama"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => onDelete(c.id)}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-red-500/15 hover:text-red-500"
-                        aria-label="Delete"
+                        aria-label="Hapus"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -156,7 +156,7 @@ export function Sidebar({
                     <button
                       onClick={commitEdit}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-emerald-500 hover:bg-emerald-500/15"
-                      aria-label="Save"
+                      aria-label="Simpan"
                     >
                       <Check className="h-4 w-4" />
                     </button>
@@ -169,11 +169,11 @@ export function Sidebar({
           {/* Footer */}
           <div className="border-t border-white/40 px-4 py-3">
             <p className="text-[11px] leading-relaxed text-slate-400">
-              Powered by GLM ·{' '}
+              Didukung oleh GLM ·{' '}
               {backend === 'supabase' ? (
-                <span className="font-medium text-emerald-600">Supabase connected</span>
+                <span className="font-medium text-emerald-600">Supabase terhubung</span>
               ) : (
-                <span className="text-amber-600">Local storage (run SQL schema to sync)</span>
+                <span className="text-amber-600">Penyimpanan lokal (jalankan skema SQL untuk sinkronisasi)</span>
               )}
             </p>
           </div>

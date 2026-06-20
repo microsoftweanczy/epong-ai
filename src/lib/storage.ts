@@ -52,7 +52,7 @@ class SupabaseStore implements ChatStore {
     if (error) throw error
     return (data || []).map((r: any) => ({
       id: r.id,
-      title: r.title || 'New Chat',
+      title: r.title || 'Obrolan Baru',
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }))

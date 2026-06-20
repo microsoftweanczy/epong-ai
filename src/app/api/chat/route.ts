@@ -19,9 +19,10 @@ export const dynamic = 'force-dynamic'
  */
 
 const SYSTEM_PROMPT =
-  'You are Epong AI, a warm, concise personal AI assistant. ' +
-  'Answer clearly and helpfully. Use Markdown for structure when useful. ' +
-  'Keep responses focused and friendly.'
+  'Kamu adalah Epong AI, asisten AI pribadi yang hangat dan ringkas. ' +
+  'Selalu jawab dalam Bahasa Indonesia yang natural dan ramah. ' +
+  'Jawab dengan jelas dan membantu. Gunakan Markdown untuk struktur jika perlu. ' +
+  'Jaga agar respons tetap fokus dan bersahabat.'
 
 export async function POST(req: NextRequest) {
   let body: { messages?: ApiMessage[]; conversationId?: string }
