@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage, MemoryNote } from '@/lib/types'
+import { completeChat } from '@/lib/ai-providers'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -7,10 +8,8 @@ export const maxDuration = 30
 
 /**
  * Extract key facts/memories from a conversation using AI.
- * Returns an array of {content, category} suggestions.
- *
- * Strategy: try OpenRouter -> GLM -> z-ai SDK (same as chat).
- * Output: JSON array of memory notes.
+ * Uses `completeChat()` from `@/lib/ai-providers` (smart fallback chain).
+ * Returns JSON: { memories: [{content, category}, ...] }
  */
 
 const EXTRACT_PROMPT = `Kamu adalah asisten yang mengekstrak poin penting dari percakapan untuk disimpan sebagai memori jangka panjang.
@@ -33,6 +32,12 @@ Contoh: [{"content":"Tinggal di Makassar","category":"fakta"},{"content":"Suka k
 
 Kategori yang tersedia: fakta, preferensi, tujuan, konteks`
 
+const MIN_MESSAGES = 2
+const MIN_TOTAL_CHARS = 80
+const MAX_MEMORIES_PER_EXTRACTION = 5
+const MAX_MEMORY_LENGTH = 150
+const VALID_CATEGORIES = ['fakta', 'preferensi', 'tujuan', 'konteks']
+
 export async function POST(req: NextRequest) {
   let body: {
     messages?: ApiMessage[]
@@ -45,16 +50,15 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  // Only look at the last ~10 messages for extraction
   const recent = incoming.slice(-10)
   const existing = body.existingMemory || []
 
-  // Skip extraction for trivial conversations
-  if (recent.length < 2) {
+  // Skip trivial conversations
+  if (recent.length < MIN_MESSAGES) {
     return Response.json({ memories: [] })
   }
   const totalChars = recent.reduce((s, m) => s + (m.content?.length || 0), 0)
-  if (totalChars < 80) {
+  if (totalChars < MIN_TOTAL_CHARS) {
     return Response.json({ memories: [] })
   }
 
@@ -66,54 +70,15 @@ export async function POST(req: NextRequest) {
     },
   ]
 
-  try {
-    let result = ''
-    let success = false
-
-    // Try OpenRouter first (primary)
-    if (process.env.OPENROUTER_API_KEY) {
-      try {
-        result = await completeFromOpenRouter(messages)
-        success = true
-      } catch (e: any) {
-        console.error('[extract] OpenRouter failed:', e?.message)
-      }
-    }
-    // Fallback to GLM
-    if (!success && process.env.GLM_API_KEY) {
-      try {
-        result = await completeFromGLM(messages)
-        success = true
-      } catch (e: any) {
-        console.error('[extract] GLM failed:', e?.message)
-      }
-    }
-    // Fallback to z-ai SDK
-    if (!success) {
-      try {
-        result = await completeFromZAI(messages)
-        success = true
-      } catch (e: any) {
-        console.error('[extract] z-ai failed:', e?.message)
-      }
-    }
-
-    if (!success) {
-      return Response.json({ memories: [] })
-    }
-
-    // Parse the JSON array from result
-    const memories = parseMemories(result)
-    return Response.json({ memories })
-  } catch (e: any) {
-    console.error('[extract] error:', e?.message)
-    return Response.json({ memories: [] })
-  }
+  const result = await completeChat(messages, 'auto')
+  const memories = parseMemories(result)
+  return Response.json({ memories })
 }
 
-function parseMemories(text: string): Array<{ content: string; category: string }> {
+function parseMemories(
+  text: string
+): Array<{ content: string; category: string }> {
   try {
-    // Find JSON array in the text (in case model wraps it)
     const match = text.match(/\[[\s\S]*?\]/)
     if (!match) return []
     const arr = JSON.parse(match[0])
@@ -124,66 +89,14 @@ function parseMemories(text: string): Array<{ content: string; category: string 
           m &&
           typeof m.content === 'string' &&
           m.content.trim().length > 0 &&
-          ['fakta', 'preferensi', 'tujuan', 'konteks'].includes(m.category)
+          VALID_CATEGORIES.includes(m.category)
       )
       .map((m: any) => ({
-        content: String(m.content).trim().slice(0, 150),
+        content: String(m.content).trim().slice(0, MAX_MEMORY_LENGTH),
         category: m.category,
       }))
-      .slice(0, 5) // max 5 per extraction
+      .slice(0, MAX_MEMORIES_PER_EXTRACTION)
   } catch {
     return []
   }
-}
-
-// ── Non-streaming completions (simpler for extraction) ──
-
-async function completeFromOpenRouter(messages: ApiMessage[]): Promise<string> {
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-120b:free'
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://epong-ai.vercel.app',
-      'X-Title': 'Epong AI',
-    },
-    body: JSON.stringify({ model, messages, stream: false, max_tokens: 800 }),
-  })
-  if (!res.ok) {
-    const t = await res.text().catch(() => '')
-    throw new Error(`OpenRouter ${res.status}: ${t.slice(0, 100)}`)
-  }
-  const data = await res.json()
-  return data?.choices?.[0]?.message?.content || ''
-}
-
-async function completeFromGLM(messages: ApiMessage[]): Promise<string> {
-  const base = process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4'
-  const model = process.env.GLM_MODEL || 'glm-4.5-flash'
-  const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
-    },
-    body: JSON.stringify({ model, messages, stream: false, max_tokens: 800 }),
-  })
-  if (!res.ok) {
-    const t = await res.text().catch(() => '')
-    throw new Error(`GLM ${res.status}: ${t.slice(0, 100)}`)
-  }
-  const data = await res.json()
-  return data?.choices?.[0]?.message?.content || ''
-}
-
-async function completeFromZAI(messages: ApiMessage[]): Promise<string> {
-  const ZAIModule = await import('z-ai-web-dev-sdk')
-  const ZAI = ZAIModule.default
-  const zai = await ZAI.create()
-  const completion: any = await zai.chat.completions.create({
-    messages,
-    thinking: { type: 'disabled' },
-  } as any)
-  return completion?.choices?.[0]?.message?.content || ''
 }
