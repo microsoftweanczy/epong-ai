@@ -59,16 +59,28 @@ export async function POST(req: NextRequest) {
         )
 
       try {
+        let success = false
         // ---- Branch 1: direct GLM API (production / Vercel) ----
         if (process.env.GLM_API_KEY) {
-          await streamFromGLM(messages, send)
-        } else {
-          // ---- Branch 2: z-ai-web-dev-sdk (preview) ----
+          try {
+            await streamFromGLM(messages, send)
+            success = true
+          } catch (glmError: any) {
+            console.error('[chat] GLM failed, falling back to z-ai SDK:', glmError?.message)
+            // Don't throw — fall through to z-ai SDK fallback below
+          }
+        }
+        // ---- Branch 2: z-ai-web-dev-sdk (preview OR fallback when GLM fails) ----
+        if (!success) {
           await streamFromZAI(messages, send)
         }
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       } catch (e: any) {
-        send({ error: e?.message || 'Generation failed' })
+        console.error('[chat] all backends failed:', e)
+        // Send a visible error message so the user knows what happened
+        send({
+          content: `*(Maaf, terjadi kesalahan: ${e?.message || 'AI tidak merespons'}. Coba lagi sebentar ya.)*`,
+        })
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       } finally {
         controller.close()
@@ -93,7 +105,7 @@ async function streamFromGLM(
   send: (obj: unknown) => void
 ) {
   const base = process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4'
-  const model = process.env.GLM_MODEL || 'glm-4-flash' // free tier model
+  const model = process.env.GLM_MODEL || 'glm-4.5-flash' // free tier model (works with current key)
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
