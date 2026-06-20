@@ -131,3 +131,23 @@ Work Log:
 
 Stage Summary:
 - Supabase credentials wired. App is resilient: works now (local) and will auto-upgrade to Supabase cloud sync the moment the user runs the schema SQL.
+
+---
+Task ID: 12
+Agent: main
+Task: Wire user's real GLM API key + find working model
+
+Work Log:
+- Tested user's GLM key (bcaafbe3...TNoowDoykkj8K3fV) against Zhipu endpoint.
+- glm-4-flash / glm-4 / glm-4-air / glm-4-flashx / glm-4-airx / glm-4-long → 400 "model does not exist" (1211).
+- glm-4-plus / glm-4.6 / glm-zero-preview → 429 "insufficient balance" (1113, paid models).
+- **glm-4.5-flash → WORKS** (free tier, latest Flash model). Reply streamed correctly.
+- Wrote .env.local with GLM_API_KEY + GLM_MODEL=glm-4.5-flash + GLM_BASE_URL.
+- Updated .env.example default model to glm-4.5-flash.
+- Restarted dev server; verified /api/chat now streams real GLM deltas ("H"+"alo"+"!" → [DONE]).
+- Verified end-to-end in browser: asked "What model are you?" → Aria replied "I am GLM, a large language model developed by Zhipu AI." Confirms real GLM, not preview SDK.
+- No errors in dev.log. Lint clean.
+
+Stage Summary:
+- App now runs on user's own free GLM 4.5 Flash quota (unlimited personal use).
+- Remaining for full production: (1) run supabase/schema.sql in dashboard, (2) push to GitHub + deploy on Vercel with the 3 env vars.
