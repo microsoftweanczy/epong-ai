@@ -6,8 +6,8 @@ import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
 import { Welcome } from './welcome'
-import { getStore } from '@/lib/storage'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { getStore, onStorageResolved } from '@/lib/storage'
+import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
 
 export default function ChatApp() {
@@ -18,16 +18,26 @@ export default function ChatApp() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [backend, setBackend] = useState<'supabase' | 'local'>('local')
 
   const abortRef = useRef<AbortController | null>(null)
   const skipNextLoad = useRef(false)
   const store = getStore()
 
-  // expose backend type for the sidebar footer
+  // detect which storage backend is actually in use (Supabase vs local fallback)
   useEffect(() => {
-    ;(window as any).__ariaBackend = isSupabaseConfigured()
-      ? 'supabase'
-      : 'local'
+    onStorageResolved((b, reason) => {
+      setBackend(b)
+      ;(window as any).__ariaBackend = b
+      if (b === 'local' && reason === 'supabase-unavailable') {
+        toast.warning(
+          'Supabase tables not found — saving locally for now. Run the SQL schema in your Supabase dashboard to enable cloud sync.',
+          { duration: 9000 }
+        )
+      } else if (b === 'supabase') {
+        toast.success('Connected to Supabase ✓', { duration: 3000 })
+      }
+    })
   }, [])
 
   // ---- load conversation list ----
@@ -275,6 +285,7 @@ export default function ChatApp() {
         conversations={conversations}
         activeId={activeId}
         open={sidebarOpen}
+        backend={backend}
         onClose={() => setSidebarOpen(false)}
         onSelect={handleSelect}
         onNew={handleNew}

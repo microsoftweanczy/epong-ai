@@ -3,8 +3,13 @@ import type { Conversation, ChatMessage, Role } from './types'
 
 /**
  * Storage abstraction for chat history.
- * - Uses Supabase when configured (production / Vercel).
- * - Falls back to localStorage when env vars are absent (local preview).
+ *
+ * Strategy:
+ *  - If Supabase env vars are absent  -> LocalStore (always).
+ *  - If Supabase env vars are present -> probe once; if the tables exist use
+ *    SupabaseStore, otherwise fall back to LocalStore (so the app still works
+ *    before the SQL schema has been run).
+ *
  * Both backends expose the same async interface.
  */
 
@@ -211,7 +216,6 @@ class LocalStore implements ChatStore {
       createdAt: now,
     }
     db.messages.push(msg)
-    // bump conversation updatedAt
     const conv = db.conversations.find((c) => c.id === conversationId)
     if (conv) conv.updatedAt = now
     saveLocal(db)
@@ -245,11 +249,98 @@ class LocalStore implements ChatStore {
   }
 }
 
+// ------------------------------------------------------ resilient probe wrapper
+
+/**
+ * Probes Supabase once. If reachable + tables exist -> SupabaseStore.
+ * Otherwise -> LocalStore. Falls back permanently for the session on failure.
+ */
+class ResilientStore implements ChatStore {
+  private resolved: ChatStore | null = null
+  private resolving: Promise<ChatStore> | null = null
+  public backend: 'supabase' | 'local' = 'local'
+  // optional listener fired once when the backend is decided
+  onResolved?: (backend: 'supabase' | 'local', reason?: string) => void
+
+  private async resolve(): Promise<ChatStore> {
+    if (this.resolved) return this.resolved
+    if (this.resolving) return this.resolving
+
+    this.resolving = (async () => {
+      if (!supabase) {
+        this.backend = 'local'
+        this.resolved = new LocalStore()
+        this.onResolved?.('local', 'no-config')
+        return this.resolved
+      }
+      // probe: a tiny SELECT against conversations
+      try {
+        const { error } = await supabase
+          .from('conversations')
+          .select('id')
+          .limit(1)
+        if (error) throw error
+        this.backend = 'supabase'
+        this.resolved = new SupabaseStore()
+        this.onResolved?.('supabase')
+        return this.resolved
+      } catch (e: any) {
+        console.warn(
+          '[storage] Supabase not ready (tables missing?), using local fallback:',
+          e?.message
+        )
+        this.backend = 'local'
+        this.resolved = new LocalStore()
+        this.onResolved?.('local', 'supabase-unavailable')
+        return this.resolved
+      }
+    })()
+
+    return this.resolving
+  }
+
+  get backendName() {
+    return this.backend
+  }
+
+  async listConversations() {
+    return (await this.resolve()).listConversations()
+  }
+  async createConversation(title?: string) {
+    return (await this.resolve()).createConversation(title)
+  }
+  async getMessages(conversationId: string) {
+    return (await this.resolve()).getMessages(conversationId)
+  }
+  async addMessage(conversationId: string, role: Role, content: string) {
+    return (await this.resolve()).addMessage(conversationId, role, content)
+  }
+  async renameConversation(conversationId: string, title: string) {
+    return (await this.resolve()).renameConversation(conversationId, title)
+  }
+  async deleteConversation(conversationId: string) {
+    return (await this.resolve()).deleteConversation(conversationId)
+  }
+  async touchConversation(conversationId: string) {
+    return (await this.resolve()).touchConversation(conversationId)
+  }
+}
+
 // ----------------------------------------------------------------- factory --
 
-let _store: ChatStore | null = null
+let _store: ResilientStore | null = null
 export function getStore(): ChatStore {
   if (_store) return _store
-  _store = supabase ? new SupabaseStore() : new LocalStore()
+  _store = new ResilientStore()
   return _store
+}
+
+/** Subscribe to which backend is actually in use (supabase vs local). */
+export function onStorageResolved(
+  cb: (backend: 'supabase' | 'local', reason?: string) => void
+): void {
+  // ensure store exists
+  const s = _store ?? new ResilientStore()
+  _store = s
+  s.onResolved = cb
 }

@@ -113,3 +113,21 @@ Stage Summary:
 - App rebuilt as "Aria" personal AI chatbot. GLM-powered streaming chat, Supabase-backed (localStorage fallback for preview), iOS 26 Liquid Glass UI.
 - Vercel-ready: env-var driven, no local-only deps, .env.example + supabase/schema.sql included.
 - To deploy: push to GitHub → import to Vercel → add env vars (Supabase URL/key + GLM_API_KEY) → run schema.sql in Supabase.
+
+---
+Task ID: 11
+Agent: main
+Task: Connect user's real Supabase project (tables missing → resilient fallback)
+
+Work Log:
+- Wrote .env.local with user's Supabase URL (https://czfzpshatbuxcmitvbct.supabase.co) + anon key.
+- Restarted dev server (Next.js reads env at startup); confirmed ".env.local" loaded.
+- Tested Supabase REST API: connection works (anon key valid), but tables `conversations` + `messages` don't exist yet (PGRST205 schema-cache miss).
+- The anon key cannot run DDL (no /pg/query endpoint, no service role). Tables must be created in the Supabase SQL dashboard.
+- Rewrote src/lib/storage.ts with a ResilientStore: probes Supabase once (SELECT id FROM conversations LIMIT 1). If reachable -> SupabaseStore; if error -> LocalStore for the session. Exposes onStorageResolved() callback.
+- chat-app.tsx: subscribes to backend resolution; shows toast "Connected to Supabase ✓" or "Supabase tables not found — saving locally for now. Run the SQL schema..." Sidebar footer shows live backend status (green "Supabase connected" / amber "Local storage (run SQL schema to sync)").
+- Verified in browser: app loads, shows fallback toast, chat works (local), AI replies "5 times 7 is 35". Lint clean, no errors.
+- Next step for user: run supabase/schema.sql in their dashboard SQL editor (https://supabase.com/dashboard/project/czfzpshatbuxcmitvbct/sql/new), then reload — app auto-switches to Supabase.
+
+Stage Summary:
+- Supabase credentials wired. App is resilient: works now (local) and will auto-upgrade to Supabase cloud sync the moment the user runs the schema SQL.

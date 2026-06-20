@@ -9,6 +9,7 @@ interface Props {
   conversations: Conversation[]
   activeId: string | null
   open: boolean
+  backend: 'supabase' | 'local'
   onClose: () => void
   onSelect: (id: string) => void
   onNew: () => void
@@ -20,6 +21,7 @@ export function Sidebar({
   conversations,
   activeId,
   open,
+  backend,
   onClose,
   onSelect,
   onNew,
@@ -168,7 +170,12 @@ export function Sidebar({
           {/* Footer */}
           <div className="border-t border-white/40 px-4 py-3">
             <p className="text-[11px] leading-relaxed text-slate-400">
-              Powered by GLM · {typeof window !== 'undefined' && (window as any).__ariaBackend === 'supabase' ? 'Supabase' : 'Local'} storage
+              Powered by GLM ·{' '}
+              {backend === 'supabase' ? (
+                <span className="font-medium text-emerald-600">Supabase connected</span>
+              ) : (
+                <span className="text-amber-600">Local storage (run SQL schema to sync)</span>
+              )}
             </p>
           </div>
         </div>
