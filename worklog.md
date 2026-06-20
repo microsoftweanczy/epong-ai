@@ -169,3 +169,22 @@ Stage Summary:
 - App is FULLY functional with real backend: GLM AI + Supabase cloud database.
 - Conversations now sync across all devices automatically.
 - Only remaining step for public deployment: push to GitHub → deploy on Vercel with env vars.
+
+---
+Task ID: 14
+Agent: main
+Task: Rebrand app to "Epong AI" with custom logo from uploaded IMG_1060.ico
+
+Work Log:
+- Inspected upload/IMG_1060.ico: 9-frame Windows icon (largest 256x256). Sharp can't read .ico; used Python PIL to extract largest frame.
+- Generated compressed/resized icon assets in public/icons/: favicon.ico (16/32/48), favicon-32.png, apple-touch-icon.png (180), logo-64.png (in-app), logo-512.png, icon-192.png + icon-512.png (PWA).
+- Created public/manifest.json (PWA web app manifest with maskable icons, theme #6366F1, name "Epong AI").
+- Created src/components/chatbot/logo.tsx: reusable <Logo> component using next/image, rounded-square, from /icons/logo-64.png.
+- Updated layout.tsx: metadata title "Epong AI — Your Personal AI", icons (favicon + apple-touch), manifest link, appleWebApp title "Epong AI", keywords.
+- Replaced Sparkles icon with <Logo> in: sidebar header (34px, next to "Epong AI" text), message-bubble assistant avatar (32px), welcome screen (72px).
+- Renamed "Aria" → "Epong AI" in: system prompt (api/chat/route.ts), composer placeholder, chat-app fallback title, sidebar header text, README.md.
+- Verified via Agent Browser: page title "Epong AI — Your Personal AI", logo images load (alt="Epong AI", 32x32, loaded=true), AI replies "Hello! I'm Epong AI, your personal assistant", placeholder "Message Epong AI…". VLM confirmed logo avatar visible next to AI replies.
+- Lint clean. Committed.
+
+Stage Summary:
+- App rebranded to "Epong AI" with custom logo throughout. Icons + manifest ready for PWA install and Vercel deploy.
