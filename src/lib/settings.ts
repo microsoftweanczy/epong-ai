@@ -71,8 +71,6 @@ function uuid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-const LS_MEMORY_KEY = 'epong-memory-v1'
-
 function isGuestUser(uid: string | null): boolean {
   return !!uid && uid.startsWith('guest-')
 }

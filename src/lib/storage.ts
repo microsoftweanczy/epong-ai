@@ -263,7 +263,6 @@ class ResilientStore implements ChatStore {
   private resolved: ChatStore | null = null
   private resolving: Promise<ChatStore> | null = null
   public backend: 'supabase' | 'local' = 'local'
-  public onResolved?: (backend: 'supabase' | 'local', reason?: string) => void
 
   constructor(private userId: string) {}
 
@@ -276,13 +275,11 @@ class ResilientStore implements ChatStore {
       if (this.userId.startsWith('guest-')) {
         this.backend = 'local'
         this.resolved = new LocalStore(this.userId)
-        this.onResolved?.('local', 'guest')
         return this.resolved
       }
       if (!supabase) {
         this.backend = 'local'
         this.resolved = new LocalStore(this.userId)
-        this.onResolved?.('local', 'no-config')
         return this.resolved
       }
       try {
@@ -293,7 +290,6 @@ class ResilientStore implements ChatStore {
         if (error) throw error
         this.backend = 'supabase'
         this.resolved = new SupabaseStore(this.userId)
-        this.onResolved?.('supabase')
         return this.resolved
       } catch (e: any) {
         console.warn(
@@ -302,7 +298,6 @@ class ResilientStore implements ChatStore {
         )
         this.backend = 'local'
         this.resolved = new LocalStore(this.userId)
-        this.onResolved?.('local', 'supabase-unavailable')
         return this.resolved
       }
     })()
@@ -345,17 +340,4 @@ export function getStore(userId: string): ChatStore {
     storeCache.set(userId, s)
   }
   return s
-}
-
-/** Subscribe to which backend is actually in use (supabase vs local). */
-export function onStorageResolved(
-  userId: string,
-  cb: (backend: 'supabase' | 'local', reason?: string) => void
-): void {
-  let s = storeCache.get(userId)
-  if (!s) {
-    s = new ResilientStore(userId)
-    storeCache.set(userId, s)
-  }
-  s.onResolved = cb
 }

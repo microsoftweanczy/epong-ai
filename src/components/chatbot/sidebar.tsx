@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
-import { formatListTime } from '@/lib/format'
+import { formatTime } from '@/lib/format'
 import { Logo } from './logo'
 
 interface Props {
@@ -134,7 +134,7 @@ export function Sidebar({
                         {c.title}
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        {formatListTime(c.updatedAt)}
+                        {formatTime(c.updatedAt)}
                       </span>
                     </button>
                   )}

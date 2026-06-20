@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { ChatMessage } from '@/lib/types'
-import { formatChatTime } from '@/lib/format'
+import { formatTime } from '@/lib/format'
 import { Logo } from './logo'
 
 interface Props {
@@ -24,7 +24,7 @@ function MessageBubbleBase({ message, streaming }: Props) {
             </div>
           </div>
           <span className="mr-1 mt-1 text-[10px] text-slate-400">
-            {formatChatTime(message.createdAt)}
+            {formatTime(message.createdAt)}
           </span>
         </div>
       </div>
@@ -49,7 +49,7 @@ function MessageBubbleBase({ message, streaming }: Props) {
           )}
         </div>
         <span className="ml-1 mt-1 text-[10px] text-slate-400">
-          {formatChatTime(message.createdAt)}
+          {formatTime(message.createdAt)}
         </span>
       </div>
     </div>
