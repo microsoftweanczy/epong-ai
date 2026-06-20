@@ -29,12 +29,19 @@ const QUOTES: Quote[] = [
   { text: 'Fokus pada progress, bukan kesempurnaan.', lang: 'id', category: 'motivasi' },
   { text: 'Disiplin adalah jembatan antara tujuan dan pencapaian.', lang: 'id', category: 'motivasi' },
   { text: 'Hari yang tidak kamu mulai dengan niat, akan menguasaimu.', lang: 'id', category: 'motivasi' },
+  { text: 'Kamu lebih kuat dari alasan yang kamu buat untuk menyerah.', lang: 'id', category: 'motivasi' },
+  { text: 'Setiap ahli pernah jadi pemula yang tidak menyerah.', lang: 'id', category: 'motivasi' },
+  { text: 'Hasil tidak pernah mengkhianati usaha yang jujur.', lang: 'id', category: 'motivasi' },
+  { text: 'Jangan bandingkan awalmu dengan hasil orang lain.', lang: 'id', category: 'motivasi' },
   // ── motivasi (EN) ──
   { text: 'The secret of getting ahead is getting started.', lang: 'en', category: 'motivasi' },
   { text: 'Small steps every day add up to big results.', lang: 'en', category: 'motivasi' },
   { text: 'Discipline is the bridge between goals and accomplishment.', lang: 'en', category: 'motivasi' },
   { text: 'Don\'t watch the clock; do what it does — keep going.', lang: 'en', category: 'motivasi' },
   { text: 'Your only limit is the one you set in your mind.', lang: 'en', category: 'motivasi' },
+  { text: 'The expert in anything was once a beginner who refused to give up.', lang: 'en', category: 'motivasi' },
+  { text: 'Don\'t compare your beginning to someone else\'s middle.', lang: 'en', category: 'motivasi' },
+  { text: 'Push yourself, because no one else is going to do it for you.', lang: 'en', category: 'motivasi' },
 
   // ── tenang (ID) ──
   { text: 'Tarik napas. Dunia tidak akan runtuh hanya karena hari ini berat.', lang: 'id', category: 'tenang' },
@@ -110,10 +117,16 @@ const QUOTES: Quote[] = [
   { text: 'Keberanian bukan tanpa takut, tapi melangkah meski takut.', lang: 'id', category: 'keberanian' },
   { text: 'Lebih baik gagal mencoba daripada penasaran seumur hidup.', lang: 'id', category: 'keberanian' },
   { text: 'Kapal memang aman di pelabuhan, tapi bukan untuk itu kapal dibuat.', lang: 'id', category: 'keberanian' },
+  { text: 'Keberanianmu hari ini menentukan ceritamu esok hari.', lang: 'id', category: 'keberanian' },
+  { text: 'Takut gagal lebih berbahaya daripada gagal itu sendiri.', lang: 'id', category: 'keberanian' },
+  { text: 'Ambil risiko. Jika menang, kau bahagia. Jika kalah, kau jadi bijak.', lang: 'id', category: 'keberanian' },
   // ── keberanian (EN) ──
   { text: 'Courage is not the absence of fear, but action in spite of it.', lang: 'en', category: 'keberanian' },
   { text: 'A ship in harbor is safe, but that is not what ships are built for.', lang: 'en', category: 'keberanian' },
   { text: 'Do one thing every day that scares you.', lang: 'en', category: 'keberanian' },
+  { text: 'Life begins at the end of your comfort zone.', lang: 'en', category: 'keberanian' },
+  { text: 'It always seems impossible until it\'s done.', lang: 'en', category: 'keberanian' },
+  { text: 'Be brave enough to be bad at something new.', lang: 'en', category: 'keberanian' },
 ]
 
 // ── keyword → category mapping (Indonesian + English keywords) ──
