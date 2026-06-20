@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
-import { buildSystemPrompt } from '@/lib/prompt'
 import { streamChat, type Provider } from '@/lib/ai-providers'
-import type { Preferences, MemoryNote } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,9 +9,8 @@ export const maxDuration = 60
 /**
  * Streaming chat completion endpoint.
  *
- * Uses the smart provider chain (OpenRouter → GLM → z-ai SDK) via
- * `streamChat()` from `@/lib/ai-providers`. The client can hint a preferred
- * provider via the `provider` field.
+ * Passes messages directly to the AI provider — no custom system prompt.
+ * The AI responds with its natural default behavior.
  *
  * Response: Server-Sent Events stream:
  *   data: {"content":"hello"}\n\n
@@ -23,10 +20,6 @@ export const maxDuration = 60
 export async function POST(req: NextRequest) {
   let body: {
     messages?: ApiMessage[]
-    conversationId?: string
-    prefs?: Preferences | null
-    memory?: MemoryNote[] | null
-    behaviorProfile?: string | null
     provider?: Provider
   }
   try {
@@ -36,16 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const systemPrompt = buildSystemPrompt(
-    body.prefs ?? null,
-    body.memory ?? null,
-    body.behaviorProfile ?? null
-  )
-  const messages: ApiMessage[] = [
-    { role: 'system', content: systemPrompt },
-    ...incoming.slice(-20),
-  ]
-
+  const messages: ApiMessage[] = incoming.slice(-20)
   const preferred: Provider = body.provider || 'auto'
 
   const encoder = new TextEncoder()

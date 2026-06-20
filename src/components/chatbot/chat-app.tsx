@@ -42,7 +42,7 @@ export default function ChatApp() {
 
   // keep theme in sync
   useThemeSync()
-  const { prefs, memory, behaviorProfile, loadMemory, setUserId, addMemory } =
+  const { prefs, memory, loadMemory, setUserId, addMemory } =
     useSettings()
 
   // sync settings userId + load memory when user changes
@@ -239,10 +239,6 @@ export default function ChatApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: apiMessages,
-            conversationId: convId,
-            prefs,
-            memory,
-            behaviorProfile,
             provider: prefs.provider,
           }),
           signal: controller.signal,
@@ -329,7 +325,7 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos, prefs, memory, behaviorProfile, addMemory]
+    [activeId, messages, store, refreshConvos, prefs, memory, addMemory]
   )
 
   const handleStop = useCallback(() => {
