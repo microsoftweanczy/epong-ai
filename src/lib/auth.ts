@@ -58,31 +58,42 @@ function clearGuest() {
  * Uses Supabase Auth with email + password, OR guest mode (no email needed).
  */
 export function useAuth() {
-  // Initialize with guest session if exists (lazy init, no setState in effect)
-  const [user, setUser] = useState<AuthUser | null>(() => loadGuest())
-  // If Supabase isn't configured, there's nothing to load — start ready.
-  const [loading, setLoading] = useState(() => supabase !== null)
+  // Start with null on both server and client (avoids hydration mismatch).
+  // Guest session is loaded in useEffect after hydration.
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // If already have a guest session, nothing more to do
-    if (loadGuest()) {
-      return
-    }
-
-    if (!supabase) {
-      return
-    }
-
     let cancelled = false
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return
-      setUser(normalizeUser(data.session?.user ?? null))
-      setLoading(false)
-    })
+    const init = async () => {
+      // Check for existing guest session first (client-only, post-hydration)
+      const guest = loadGuest()
+      if (guest) {
+        if (!cancelled) {
+          setUser(guest)
+          setLoading(false)
+        }
+        return
+      }
+
+      if (!supabase) {
+        if (!cancelled) setLoading(false)
+        return
+      }
+
+      // Get Supabase session
+      const { data } = await supabase.auth.getSession()
+      if (!cancelled) {
+        setUser(normalizeUser(data.session?.user ?? null))
+        setLoading(false)
+      }
+    }
+
+    init()
 
     // Listen for auth changes (login/logout/OAuth callback)
+    if (!supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(normalizeUser(session?.user ?? null))
     })
