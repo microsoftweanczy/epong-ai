@@ -27,7 +27,13 @@ export default function ChatApp() {
   const [backend, setBackend] = useState<'supabase' | 'local'>('local')
 
   // ---- auth ----
-  const { user, loading: authLoading, signInWithGoogle, signInWithApple, signOut } = useAuth()
+  const {
+    user,
+    loading: authLoading,
+    signInWithEmail,
+    signUpWithEmail,
+    signOut,
+  } = useAuth()
   const userId = user?.id || null
 
   // keep theme in sync
@@ -320,9 +326,8 @@ export default function ChatApp() {
   if (!authLoading && !user) {
     return (
       <LoginScreen
-        onGoogle={signInWithGoogle}
-        onApple={signInWithApple}
-        loading={authLoading}
+        onSignIn={signInWithEmail}
+        onSignUp={signUpWithEmail}
       />
     )
   }

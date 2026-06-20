@@ -30,8 +30,8 @@ function normalizeUser(u: User | null): AuthUser | null {
 }
 
 /**
- * Auth hook. Returns the current authenticated user (or null) + signIn/signOut.
- * Works with Supabase Auth OAuth (Google / Apple).
+ * Auth hook. Returns the current authenticated user (or null) + signIn/signUp/signOut.
+ * Uses Supabase Auth with email + password.
  * If Supabase isn't configured, auth is skipped (guest mode).
  */
 export function useAuth() {
@@ -64,24 +64,20 @@ export function useAuth() {
     }
   }, [])
 
-  const signInWithGoogle = useCallback(async () => {
-    if (!supabase) return
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      },
-    })
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    if (!supabase) return { error: { message: 'Auth not configured' } as any }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error }
   }, [])
 
-  const signInWithApple = useCallback(async () => {
-    if (!supabase) return
-    await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      },
+  const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
+    if (!supabase) return { error: { message: 'Auth not configured' } as any }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
     })
+    return { data, error }
   }, [])
 
   const signOut = useCallback(async () => {
@@ -90,5 +86,11 @@ export function useAuth() {
     setUser(null)
   }, [])
 
-  return { user, loading, signInWithGoogle, signInWithApple, signOut }
+  return {
+    user,
+    loading,
+    signInWithEmail,
+    signUpWithEmail,
+    signOut,
+  }
 }
