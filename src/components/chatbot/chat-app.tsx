@@ -391,7 +391,7 @@ export default function ChatApp() {
         {/* Body */}
         {showWelcome ? (
           <div className="flex flex-1 flex-col">
-            <Welcome onPick={(p) => handleSend(p)} userName={user.name} />
+            <Welcome userName={user.name} />
           </div>
         ) : (
           <>
