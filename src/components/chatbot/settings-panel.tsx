@@ -191,20 +191,6 @@ export function SettingsPanel({ open, onClose }: Props) {
                 />
               </Field>
 
-              <Field label="Mesin AI" desc="Pilih provider AI utama (auto = switch otomatis)">
-                <SegmentedOptions
-                  value={prefs.provider}
-                  options={[
-                    { value: 'auto', label: 'Auto' },
-                    { value: 'glm', label: 'GLM' },
-                    { value: 'openrouter', label: 'OpenRouter' },
-                  ]}
-                  onChange={(v) =>
-                    setPrefs({ provider: v as 'auto' | 'glm' | 'openrouter' })
-                  }
-                />
-              </Field>
-
               <ToggleRow
                 icon={Heart}
                 label="Empati emosional"

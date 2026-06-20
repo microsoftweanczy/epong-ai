@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth'
 import { useIncognito } from '@/lib/incognito'
 import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
+import type { MemoryNote } from '@/lib/settings'
 
 export default function ChatApp() {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -39,7 +40,8 @@ export default function ChatApp() {
 
   // keep theme in sync
   useThemeSync()
-  const { prefs, memory, behaviorProfile, loadMemory, setUserId } = useSettings()
+  const { prefs, memory, behaviorProfile, loadMemory, setUserId, addMemory } =
+    useSettings()
 
   // sync settings userId + load memory when user changes
   useEffect(() => {
@@ -288,6 +290,13 @@ export default function ChatApp() {
           await store!.addMessage(convId, 'assistant', accumulated || '_(no response)_')
           store!.touchConversation(convId).catch(() => {})
           refreshConvos()
+
+          // ── Auto-extract memories from this conversation (background, no block) ──
+          const allMsgs: ApiMessage[] = [...messages, userMsg, { role: 'assistant', content: accumulated }].map((m) => ({
+            role: m.role,
+            content: m.content,
+          }))
+          extractMemories(allMsgs, memory, addMemory).catch(() => {})
         }
       } catch (e: any) {
         if (e.name === 'AbortError') {
@@ -318,7 +327,7 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos, prefs, memory, behaviorProfile]
+    [activeId, messages, store, refreshConvos, prefs, memory, behaviorProfile, addMemory]
   )
 
   const handleStop = useCallback(() => {
@@ -436,4 +445,48 @@ export default function ChatApp() {
       />
     </div>
   )
+}
+
+// ── Auto-memory extraction helper ──
+// Runs in background after each AI reply. Calls /api/extract-memory,
+// then adds any new memories to the store (with deduplication).
+async function extractMemories(
+  messages: ApiMessage[],
+  existingMemory: MemoryNote[],
+  addMemory: (content: string, category?: MemoryNote['category']) => Promise<void>
+) {
+  try {
+    const res = await fetch('/api/extract-memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, existingMemory }),
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const memories: Array<{ content: string; category: string }> =
+      data.memories || []
+    if (memories.length === 0) return
+
+    // Dedupe against existing memory (case-insensitive substring check)
+    const existingLower = existingMemory.map((m) => m.content.toLowerCase())
+    let added = 0
+    for (const m of memories) {
+      const contentLower = m.content.toLowerCase()
+      const isDuplicate = existingLower.some(
+        (e) => e.includes(contentLower) || contentLower.includes(e)
+      )
+      if (!isDuplicate) {
+        await addMemory(m.content, m.category as MemoryNote['category'])
+        existingLower.push(contentLower)
+        added++
+      }
+    }
+    if (added > 0) {
+      toast.success(`${added} memori baru tersimpan otomatis`, {
+        duration: 2500,
+      })
+    }
+  } catch {
+    // silent — extraction is best-effort, never block the chat
+  }
 }
