@@ -66,3 +66,25 @@ Stage Summary:
 - FamilyChat is fully functional and browser-verified.
 - All core WhatsApp features work: direct + group chats, real-time messaging, typing, online presence, read receipts (blue ticks), unread badges, message persistence, mobile-first responsive UI.
 - Ready for family use; access via the Preview Panel (or "Open in New Tab").
+
+---
+Task ID: 9
+Agent: main
+Task: Re-theme app to professional blue + fix mobile UI/UX
+
+Work Log:
+- Defined a cohesive professional blue palette: header #1E3A8A (navy), accent/send/FAB #2563EB (blue-600), hover #1D4ED8, sent bubble solid #2563EB with white text, received bubble white, chat bg #EAF1FB with subtle blue doodle pattern (#a8c4ec @0.28), read ticks white on sent bubble, list read tick #2563EB.
+- globals.css: added .safe-top/.safe-bottom/.safe-x utilities (env(safe-area-inset-*)), .thin-scrollbar (blue-tinted), .tap-feedback, removed webkit tap highlight.
+- layout.tsx: viewport themeColor -> #1E3A8A, added viewportFit: "cover" (enables safe-area on notched Android/iOS).
+- onboarding.tsx: gradient from-[#1E3A8A] to-[#2563EB], button #2563EB, safe-top/bottom.
+- chat-list.tsx: blue header + safe-top/safe-x, REMOVED header "+" button, added WhatsApp-style floating action button (FAB) bottom-right (h-14 w-14, #2563EB, shadow, active:scale-95) with safe-area offset; blue unread badges/ticks; larger 40px menu button; thin-scrollbar on list; tap-feedback rows.
+- chat-view.tsx: blue header + safe-top/safe-x, solid blue sent bubbles (#2563EB) with white text + white read ticks; bigger 44px (h-11 w-11) emoji/attach/back/call/phone buttons for touch; enterKeyHint="send" + inputMode="text" for mobile keyboards; safe-bottom on input bar; blue chat bg pattern; thin-scrollbar.
+- new-chat-dialog.tsx: blue header + safe-top, blue icon circles (#2563EB direct / #3B82F6 group) with shadows, blue selection chips/checkbox/create button, safe-bottom on footer.
+- avatar.tsx: default color #253D... -> #2563EB.
+- users API: palette -> professional blues/teals/indigos/slates (10 colors).
+- Verified: lint 0 errors, dev.log clean, chat-service up (port 3003). Agent Browser (iPhone 14) + VLM confirmed cohesive professional blue theme (header, FAB, sent bubbles, send button all blue) with no runtime/console errors.
+
+Stage Summary:
+- App fully re-themed to professional blue across all screens.
+- Mobile UX fixed: safe-area insets for notched phones, 44px touch targets, floating FAB for new chat, mobile keyboard hints (enterKeyHint=send), refined scrollbars, tap feedback.
+- Verified via Agent Browser + VLM; ready for family use.

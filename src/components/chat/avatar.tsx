@@ -20,7 +20,7 @@ const sizeMap = {
 
 export function Avatar({
   name,
-  color = '#25D366',
+  color = '#2563EB',
   size = 'md',
   online,
   isGroup,

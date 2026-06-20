@@ -37,7 +37,7 @@ export function Onboarding() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-gradient-to-b from-[#075E54] to-[#128C7E] px-6 py-10 text-white">
+    <div className="safe-top safe-bottom flex min-h-[100dvh] flex-col items-center justify-center bg-gradient-to-b from-[#1E3A8A] to-[#2563EB] px-6 py-10 text-white">
       <div className="w-full max-w-sm text-center">
         <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-white/15 backdrop-blur">
           <MessageCircle className="h-12 w-12 text-white" />
@@ -64,7 +64,7 @@ export function Onboarding() {
           <Button
             onClick={handleStart}
             disabled={loading || !name.trim()}
-            className="h-11 w-full bg-[#25D366] text-base font-semibold text-white hover:bg-[#1fb958]"
+            className="h-12 w-full bg-[#2563EB] text-base font-semibold text-white shadow-lg shadow-[#2563EB]/30 hover:bg-[#1D4ED8]"
           >
             {loading ? 'Starting…' : 'Start Chatting'}
           </Button>

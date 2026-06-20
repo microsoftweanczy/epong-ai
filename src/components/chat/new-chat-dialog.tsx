@@ -144,11 +144,11 @@ export function NewChatDialog({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white sm:items-center sm:justify-center">
       {/* header */}
-      <div className="flex items-center gap-3 bg-[#075E54] px-4 py-4 text-white sm:max-w-md sm:rounded-t-2xl">
+      <div className="safe-top safe-x flex items-center gap-3 bg-[#1E3A8A] px-4 pb-4 pt-4 text-white shadow-md shadow-black/10 sm:max-w-md sm:rounded-t-2xl">
         {mode === 'menu' ? (
           <button
             onClick={onClose}
-            className="rounded-full p-1 hover:bg-white/10"
+            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -156,7 +156,7 @@ export function NewChatDialog({
         ) : (
           <button
             onClick={() => setMode('menu')}
-            className="rounded-full p-1 hover:bg-white/10"
+            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -170,9 +170,9 @@ export function NewChatDialog({
           <div className="flex flex-col py-2">
             <button
               onClick={() => setMode('direct')}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50"
+              className="tap-feedback flex items-center gap-4 px-6 py-4 hover:bg-[#f1f5fb] active:bg-[#e2eaf6]"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#128C7E] text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/25">
                 <Search className="h-5 w-5" />
               </div>
               <div className="text-left">
@@ -184,9 +184,9 @@ export function NewChatDialog({
             </button>
             <button
               onClick={() => setMode('group')}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50"
+              className="tap-feedback flex items-center gap-4 px-6 py-4 hover:bg-[#f1f5fb] active:bg-[#e2eaf6]"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3B82F6] text-white shadow-md shadow-[#3B82F6]/25">
                 <Users className="h-5 w-5" />
               </div>
               <div className="text-left">
@@ -214,12 +214,12 @@ export function NewChatDialog({
                     {selected.map((u) => (
                       <span
                         key={u.id}
-                        className="flex items-center gap-1 rounded-full bg-[#25D366]/15 px-2 py-1 text-xs font-medium text-[#075E54]"
+                        className="flex items-center gap-1 rounded-full bg-[#2563EB]/12 px-2.5 py-1 text-xs font-medium text-[#1E3A8A]"
                       >
                         {u.name}
                         <button
                           onClick={() => toggleSelect(u)}
-                          className="rounded-full hover:bg-white/60"
+                          className="rounded-full p-0.5 hover:bg-white/60"
                           aria-label={`Remove ${u.name}`}
                         >
                           <X className="h-3 w-3" />
@@ -282,7 +282,7 @@ export function NewChatDialog({
                       <div
                         className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
                           isSelected
-                            ? 'border-[#25D366] bg-[#25D366] text-white'
+                            ? 'border-[#2563EB] bg-[#2563EB] text-white'
                             : 'border-gray-300'
                         }`}
                       >
@@ -295,11 +295,11 @@ export function NewChatDialog({
             </div>
 
             {mode === 'group' && selected.length > 0 && (
-              <div className="border-t p-3">
+              <div className="safe-bottom border-t p-3">
                 <Button
                   onClick={createGroup}
                   disabled={loading || !groupName.trim()}
-                  className="h-11 w-full bg-[#25D366] text-white hover:bg-[#1fb958]"
+                  className="h-12 w-full bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/25 hover:bg-[#1D4ED8]"
                 >
                   {loading
                     ? 'Creating…'

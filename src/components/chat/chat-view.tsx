@@ -288,12 +288,12 @@ export function ChatView({
         : 'offline'
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#efeae2]">
+    <div className="flex h-[100dvh] flex-col bg-[#EAF1FB]">
       {/* Header */}
-      <header className="flex items-center gap-3 bg-[#075E54] px-2 py-2 text-white sm:px-3">
+      <header className="safe-top safe-x flex items-center gap-2 bg-[#1E3A8A] px-2 pb-2 pt-2 text-white shadow-md shadow-black/10 sm:gap-3 sm:px-3">
         <button
           onClick={onBack}
-          className="rounded-full p-1.5 hover:bg-white/10"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15"
           aria-label="Back"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -310,16 +310,16 @@ export function ChatView({
           </div>
           <div
             className={`truncate text-xs leading-tight ${
-              typingUser ? 'text-[#a8f0c4]' : 'text-white/70'
+              typingUser ? 'text-[#93C5FD]' : 'text-white/70'
             }`}
           >
             {headerSubtitle}
           </div>
         </div>
-        <button className="rounded-full p-2 hover:bg-white/10" aria-label="Call">
+        <button className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15" aria-label="Call">
           <Video className="h-5 w-5" />
         </button>
-        <button className="rounded-full p-2 hover:bg-white/10" aria-label="Phone">
+        <button className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15" aria-label="Phone">
           <Phone className="h-5 w-5" />
         </button>
       </header>
@@ -327,10 +327,10 @@ export function ChatView({
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 py-2"
+        className="thin-scrollbar flex-1 overflow-y-auto px-3 py-2"
         style={{
           backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d9cfc3' fill-opacity='0.35'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23a8c4ec' fill-opacity='0.28'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
         }}
       >
         {loading && (
@@ -365,7 +365,7 @@ export function ChatView({
             <button
               key={e}
               onClick={() => setInput((prev) => prev + e)}
-              className="rounded-md p-1 text-2xl hover:bg-gray-100"
+              className="flex h-10 w-10 items-center justify-center rounded-md text-2xl hover:bg-gray-100 active:bg-gray-200"
             >
               {e}
             </button>
@@ -374,16 +374,18 @@ export function ChatView({
       )}
 
       {/* Input bar */}
-      <div className="flex items-end gap-2 bg-[#f0f2f5] px-2 py-2 sm:px-3">
+      <div className="safe-bottom safe-x flex items-end gap-1.5 bg-[#F1F5FB] px-2 py-2 sm:gap-2 sm:px-3">
         <button
           onClick={() => setShowEmoji((s) => !s)}
-          className="rounded-full p-2 text-gray-500 hover:bg-gray-200"
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-gray-200 active:bg-gray-300 ${
+            showEmoji ? 'text-[#2563EB]' : 'text-gray-500'
+          }`}
           aria-label="Emoji"
         >
           <Smile className="h-6 w-6" />
         </button>
         <button
-          className="rounded-full p-2 text-gray-500 hover:bg-gray-200"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 active:bg-gray-300"
           aria-label="Attach"
         >
           <Paperclip className="h-6 w-6" />
@@ -398,12 +400,14 @@ export function ChatView({
             }
           }}
           placeholder="Type a message"
-          className="flex-1 rounded-full bg-white px-4 py-2.5 text-[15px] outline-none placeholder:text-gray-400"
+          enterKeyHint="send"
+          inputMode="text"
+          className="min-w-0 flex-1 rounded-full bg-white px-4 py-2.5 text-[15px] shadow-sm outline-none transition placeholder:text-gray-400"
         />
         <button
           onClick={sendMessage}
           disabled={sending || !input.trim()}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#1fb958] disabled:opacity-50"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-95 disabled:opacity-40"
           aria-label="Send"
         >
           <Send className="h-5 w-5" />
@@ -427,7 +431,7 @@ function MessageBubble({
       <div
         className={`relative max-w-[78%] rounded-2xl px-3 py-1.5 shadow-sm sm:max-w-[65%] ${
           mine
-            ? 'rounded-br-sm bg-[#d9fdd3] text-gray-900'
+            ? 'rounded-br-sm bg-[#2563EB] text-white'
             : 'rounded-bl-sm bg-white text-gray-900'
         }`}
       >
@@ -443,16 +447,20 @@ function MessageBubble({
           {message.content}
         </div>
         <div className="mt-0.5 flex items-center justify-end gap-1">
-          <span className="text-[10px] text-gray-500">
+          <span
+            className={`text-[10px] ${
+              mine ? 'text-white/70' : 'text-gray-400'
+            }`
+          }>
             {formatChatTime(message.createdAt)}
           </span>
           {mine &&
             (message.status === 'read' ? (
-              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+              <CheckCheck className="h-3.5 w-3.5 text-white" />
             ) : message.status === 'delivered' ? (
-              <CheckCheck className="h-3.5 w-3.5 text-gray-500" />
+              <CheckCheck className="h-3.5 w-3.5 text-white/60" />
             ) : (
-              <Check className="h-3.5 w-3.5 text-gray-500" />
+              <Check className="h-3.5 w-3.5 text-white/60" />
             ))}
         </div>
       </div>

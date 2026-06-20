@@ -16,10 +16,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ user: existing })
     }
 
-    // Pick an avatar color from a friendly palette
+    // Pick an avatar color from a professional palette (blues, teals, slates)
     const palette = [
-      '#25D366', '#34B7F1', '#FF6B6B', '#F0B429', '#8B5CF6',
-      '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#10B981',
+      '#2563EB', '#3B82F6', '#1D4ED8', '#0EA5E9',
+      '#0891B2', '#0D9488', '#7C3AED', '#6366F1',
+      '#4F46E5', '#1E40AF',
     ]
     const avatarColor = palette[Math.floor(Math.random() * palette.length)]
 

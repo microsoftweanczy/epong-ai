@@ -39,22 +39,15 @@ export function ChatList({
     : conversations
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-white">
+    <div className="relative flex h-[100dvh] flex-col bg-white">
       {/* Header */}
-      <header className="flex items-center justify-between bg-[#075E54] px-4 py-3 text-white">
-        <h1 className="text-lg font-semibold">FamilyChat</h1>
+      <header className="safe-top safe-x flex items-center justify-between bg-[#1E3A8A] px-4 pb-3 pt-3 text-white shadow-md shadow-black/5">
+        <h1 className="text-lg font-semibold tracking-tight">FamilyChat</h1>
         <div className="flex items-center gap-1">
-          <button
-            onClick={onNewChat}
-            className="rounded-full p-2 hover:bg-white/10"
-            aria-label="New chat"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="rounded-full p-2 hover:bg-white/10"
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15"
                 aria-label="More options"
               >
                 <MoreVertical className="h-5 w-5" />
@@ -78,18 +71,19 @@ export function ChatList({
       {/* Search */}
       <div className="bg-white px-3 py-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Search chats"
-            className="h-9 w-full rounded-full bg-[#f0f2f5] pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
+            inputMode="search"
+            className="h-10 w-full rounded-full bg-[#eef2f9] pl-10 pr-4 text-[15px] outline-none transition focus:bg-[#e4ebf6] placeholder:text-gray-400"
           />
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="thin-scrollbar flex-1 overflow-y-auto">
         {loading && (
           <div className="flex items-center justify-center py-10 text-sm text-gray-400">
             Loading chats…
@@ -98,19 +92,20 @@ export function ChatList({
 
         {!loading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366]/15">
-              <MessageCircle className="h-8 w-8 text-[#25D366]" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#2563EB]/10">
+              <MessageCircle className="h-8 w-8 text-[#2563EB]" />
             </div>
             <h3 className="text-base font-semibold text-gray-800">
               No chats yet
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Tap the <Plus className="inline h-3 w-3" /> button to start a new
-              chat with a family member.
+              Tap the{' '}
+              <Plus className="inline h-3 w-3 align-text-bottom" /> button to
+              start a new chat with a family member.
             </p>
             <button
               onClick={onNewChat}
-              className="mt-5 rounded-full bg-[#25D366] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1fb958]"
+              className="mt-5 rounded-full bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#2563EB]/25 hover:bg-[#1D4ED8]"
             >
               New chat
             </button>
@@ -133,7 +128,7 @@ export function ChatList({
               <button
                 key={c.id}
                 onClick={() => onSelect(c.id)}
-                className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left hover:bg-[#f5f6f6] active:bg-[#e9edef]"
+                className="tap-feedback flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#f1f5fb] active:bg-[#e2eaf6]"
               >
                 <Avatar
                   name={c.name || '?'}
@@ -150,7 +145,7 @@ export function ChatList({
                     <span
                       className={`shrink-0 text-xs ${
                         c.unreadCount > 0
-                          ? 'font-semibold text-[#25D366]'
+                          ? 'font-semibold text-[#2563EB]'
                           : 'text-gray-400'
                       }`}
                     >
@@ -163,7 +158,7 @@ export function ChatList({
                         last.senderId === currentUserId && (
                           <span className="shrink-0">
                             {last.status === 'read' ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+                              <CheckCheck className="h-3.5 w-3.5 text-[#2563EB]" />
                             ) : last.status === 'delivered' ? (
                               <CheckCheck className="h-3.5 w-3.5 text-gray-400" />
                             ) : (
@@ -174,7 +169,7 @@ export function ChatList({
                       <span className="truncate">{lastPreview}</span>
                     </span>
                     {c.unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#25D366] px-1.5 text-xs font-bold text-white">
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#2563EB] px-1.5 text-xs font-bold text-white">
                         {c.unreadCount}
                       </span>
                     )}
@@ -184,6 +179,15 @@ export function ChatList({
             )
           })}
       </div>
+
+      {/* Floating action button (WhatsApp-style) */}
+      <button
+        onClick={onNewChat}
+        aria-label="New chat"
+        className="absolute bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-lg shadow-[#2563EB]/35 transition hover:bg-[#1D4ED8] active:scale-95"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   )
 }
