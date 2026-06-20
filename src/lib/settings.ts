@@ -73,6 +73,10 @@ function uuid() {
 
 const LS_MEMORY_KEY = 'epong-memory-v1'
 
+function isGuestUser(uid: string | null): boolean {
+  return !!uid && uid.startsWith('guest-')
+}
+
 function localMemoryKey(userId: string) {
   return `epong-memory-${userId}`
 }
@@ -110,7 +114,8 @@ export const useSettings = create<SettingsState>()(
           set({ memory: [], memoryLoaded: true })
           return
         }
-        if (supabase) {
+        // Guest users: always local (no Supabase auth session)
+        if (!isGuestUser(uid) && supabase) {
           try {
             const { data, error } = await supabase
               .from('user_memory')
@@ -142,7 +147,7 @@ export const useSettings = create<SettingsState>()(
           createdAt: new Date().toISOString(),
         }
         if (!note.content) return
-        if (supabase) {
+        if (!isGuestUser(uid) && supabase) {
           try {
             const { error } = await supabase.from('user_memory').insert({
               id: note.id,
@@ -156,16 +161,16 @@ export const useSettings = create<SettingsState>()(
             // fall back to local
           }
         }
-        const local = supabase ? get().memory : loadLocalMemory(uid)
+        const local = (!isGuestUser(uid) && supabase) ? get().memory : loadLocalMemory(uid)
         const updated = [note, ...local]
-        if (!supabase) saveLocalMemory(uid, updated)
+        if (isGuestUser(uid) || !supabase) saveLocalMemory(uid, updated)
         set({ memory: updated })
       },
       updateMemory: async (id, content) => {
         const uid = get().userId
         if (!uid) return
         const trimmed = content.trim()
-        if (supabase) {
+        if (!isGuestUser(uid) && supabase) {
           try {
             const { error } = await supabase
               .from('user_memory')
@@ -182,12 +187,12 @@ export const useSettings = create<SettingsState>()(
             m.id === id ? { ...m, content: trimmed } : m
           ),
         })
-        if (!supabase) saveLocalMemory(uid, get().memory)
+        if (isGuestUser(uid) || !supabase) saveLocalMemory(uid, get().memory)
       },
       deleteMemory: async (id) => {
         const uid = get().userId
         if (!uid) return
-        if (supabase) {
+        if (!isGuestUser(uid) && supabase) {
           try {
             await supabase
               .from('user_memory')
@@ -199,7 +204,7 @@ export const useSettings = create<SettingsState>()(
           }
         }
         set({ memory: get().memory.filter((m) => m.id !== id) })
-        if (!supabase) saveLocalMemory(uid, get().memory)
+        if (isGuestUser(uid) || !supabase) saveLocalMemory(uid, get().memory)
       },
 
       behaviorProfile: '',

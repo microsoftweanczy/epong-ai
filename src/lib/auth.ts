@@ -10,7 +10,10 @@ export interface AuthUser {
   name: string
   avatarUrl?: string
   provider?: string
+  isGuest?: boolean
 }
+
+const GUEST_KEY = 'epong-guest-session'
 
 function normalizeUser(u: User | null): AuthUser | null {
   if (!u) return null
@@ -29,17 +32,43 @@ function normalizeUser(u: User | null): AuthUser | null {
   }
 }
 
+function loadGuest(): AuthUser | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(GUEST_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveGuest(user: AuthUser) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(GUEST_KEY, JSON.stringify(user))
+}
+
+function clearGuest() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(GUEST_KEY)
+}
+
 /**
  * Auth hook. Returns the current authenticated user (or null) + signIn/signUp/signOut.
- * Uses Supabase Auth with email + password.
- * If Supabase isn't configured, auth is skipped (guest mode).
+ * Uses Supabase Auth with email + password, OR guest mode (no email needed).
  */
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  // Initialize with guest session if exists (lazy init, no setState in effect)
+  const [user, setUser] = useState<AuthUser | null>(() => loadGuest())
   // If Supabase isn't configured, there's nothing to load — start ready.
   const [loading, setLoading] = useState(() => supabase !== null)
 
   useEffect(() => {
+    // If already have a guest session, nothing more to do
+    if (loadGuest()) {
+      return
+    }
+
     if (!supabase) {
       return
     }
@@ -66,12 +95,14 @@ export function useAuth() {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
+    clearGuest() // clear any guest session
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
   }, [])
 
   const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
+    clearGuest()
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -80,9 +111,26 @@ export function useAuth() {
     return { data, error }
   }, [])
 
+  const signInAsGuest = useCallback((name?: string) => {
+    const guestName = name?.trim() || 'Tamu'
+    const guestUser: AuthUser = {
+      id: 'guest-' + (crypto.randomUUID?.() || Math.random().toString(36).slice(2)),
+      email: '',
+      name: guestName,
+      provider: 'guest',
+      isGuest: true,
+    }
+    saveGuest(guestUser)
+    setUser(guestUser)
+  }, [])
+
   const signOut = useCallback(async () => {
-    if (!supabase) return
-    await supabase.auth.signOut()
+    // Clear guest session
+    clearGuest()
+    // Sign out from Supabase if there's a session
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
     setUser(null)
   }, [])
 
@@ -91,6 +139,7 @@ export function useAuth() {
     loading,
     signInWithEmail,
     signUpWithEmail,
+    signInAsGuest,
     signOut,
   }
 }

@@ -272,6 +272,13 @@ class ResilientStore implements ChatStore {
     if (this.resolving) return this.resolving
 
     this.resolving = (async () => {
+      // Guest users always use local storage (no Supabase auth session)
+      if (this.userId.startsWith('guest-')) {
+        this.backend = 'local'
+        this.resolved = new LocalStore(this.userId)
+        this.onResolved?.('local', 'guest')
+        return this.resolved
+      }
       if (!supabase) {
         this.backend = 'local'
         this.resolved = new LocalStore(this.userId)

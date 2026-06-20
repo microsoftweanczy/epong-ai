@@ -34,6 +34,7 @@ export default function ChatApp() {
     loading: authLoading,
     signInWithEmail,
     signUpWithEmail,
+    signInAsGuest,
     signOut,
   } = useAuth()
   const userId = user?.id || null
@@ -344,6 +345,7 @@ export default function ChatApp() {
       <LoginScreen
         onSignIn={signInWithEmail}
         onSignUp={signUpWithEmail}
+        onGuest={signInAsGuest}
       />
     )
   }

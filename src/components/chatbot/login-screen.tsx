@@ -11,14 +11,17 @@ interface Props {
     password: string,
     name: string
   ) => Promise<{ data: any; error: any }>
+  onGuest: (name?: string) => void
 }
 
-export function LoginScreen({ onSignIn, onSignUp }: Props) {
+export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showGuestInput, setShowGuestInput] = useState(false)
+  const [guestName, setGuestName] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,15 +186,74 @@ export function LoginScreen({ onSignIn, onSignUp }: Props) {
               ? 'Belum punya akun? Klik "Daftar" di atas.'
               : 'Sudah punya akun? Klik "Masuk" di atas.'}
           </p>
+
+          {/* Divider */}
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+            <span className="text-[11px] font-medium text-slate-400">atau</span>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+          </div>
+
+          {/* Guest mode */}
+          {showGuestInput ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onGuest(guestName)
+                  }
+                }}
+                placeholder="Nama Anda (opsional)"
+                autoFocus
+                className="h-11 w-full rounded-2xl bg-slate-100 px-4 text-[15px] text-slate-800 outline-none dark:bg-slate-800/60 dark:text-slate-100"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGuestInput(false)}
+                  className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-[14px] font-medium text-slate-600 dark:bg-slate-800/60 dark:text-slate-300"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onGuest(guestName)}
+                  className="flex-1 rounded-2xl bg-slate-800 px-4 py-3 text-[14px] font-semibold text-white dark:bg-slate-700"
+                >
+                  Mulai
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowGuestInput(true)}
+              className="tap-feedback flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/50 px-4 py-3 text-[14px] font-medium text-slate-600 transition hover:bg-white dark:border-slate-700 dark:bg-slate-800/30 dark:text-slate-300"
+            >
+              <UserIcon />
+              Masuk sebagai Tamu
+            </button>
+          )}
         </div>
 
         <p className="mt-5 text-center text-[12px] leading-relaxed text-slate-400">
-          Data Anda aman & terenkripsi di Supabase.
-          <br />
-          Obrolan & memori tersinkron antar perangkat.
+          {showGuestInput
+            ? 'Mode tamu: data disimpan di perangkat ini saja, tidak tersinkron cloud.'
+            : 'Login email untuk sinkron cloud. Atau masuk sebagai tamu tanpa email.'}
         </p>
       </div>
     </div>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
   )
 }
 
