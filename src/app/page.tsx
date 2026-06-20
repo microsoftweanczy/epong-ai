@@ -1,5 +1,5 @@
-import { ChatApp } from '@/components/chat/chat-app'
+import ChatApp from "@/components/chatbot/chat-app";
 
 export default function Home() {
-  return <ChatApp />
+  return <ChatApp />;
 }

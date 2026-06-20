@@ -88,3 +88,28 @@ Stage Summary:
 - App fully re-themed to professional blue across all screens.
 - Mobile UX fixed: safe-area insets for notched phones, 44px touch targets, floating FAB for new chat, mobile keyboard hints (enterKeyHint=send), refined scrollbars, tap feedback.
 - Verified via Agent Browser + VLM; ready for family use.
+
+---
+Task ID: 10
+Agent: main
+Task: Recreate app as personal AI chatbot (Aria) — Supabase backend, GLM, iOS 26 design, Vercel-ready
+
+Work Log:
+- Removed old WhatsApp clone (src/components/chat, api routes, socket service, mini-services, session-store, chat-types).
+- Installed @supabase/supabase-js.
+- Created storage abstraction (src/lib/storage.ts): SupabaseStore when env configured, LocalStore (localStorage) fallback. Same async interface. Used by getStore() factory.
+- Created src/lib/supabase.ts: client reads NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY, null if absent.
+- Created supabase/schema.sql: conversations + messages tables, indexes, RLS policies, realtime publication. Ready to run in Supabase SQL editor.
+- Built streaming GLM API route (src/app/api/chat/route.ts): SSE stream. Two backends — (1) direct GLM OpenAI-compatible endpoint when GLM_API_KEY set (Vercel production), (2) z-ai-web-dev-sdk for preview. Fixed z-ai streaming: SDK yields raw SSE bytes in one chunk; added decodeChunk() to parse all data: lines and emit deltas. Verified streaming works (deltas emit progressively).
+- Created .env.example documenting all env vars (Supabase + GLM).
+- iOS 26 "Liquid Glass" design: globals.css with .glass (backdrop-blur 28px + saturate 180%), .mesh-bg (animated pastel radial gradients), SF Pro system font stack, safe-area utilities, thin-scrollbar, .md-body markdown styles. System blue #0A84FF accents.
+- Built components: chat-app.tsx (orchestrator with streaming SSE client, AbortController stop, auto-title from first message, skipNextLoad ref to fix race condition), sidebar.tsx (glass panel, conversation list with rename/delete, mobile slide-over), message-list.tsx (auto-scroll), message-bubble.tsx (iOS blue user bubbles + glass assistant bubbles with react-markdown + thinking dots + streaming caret), composer.tsx (glass rounded input, auto-grow textarea, send/stop button, enterKeyHint=send), welcome.tsx (4 suggestion chips).
+- layout.tsx: iOS metadata (appleWebApp capable, statusBarStyle black-translucent, themeColor, viewportFit cover), Sonner toaster.
+- Fixed race condition: creating a conversation + setActiveId triggered the messages-loading effect which clobbered optimistic messages. Added skipNextLoad ref.
+- Fixed auto-title: maybeTitle read stale conversations state; now title at creation time from first user message.
+- Verified end-to-end via Agent Browser (iPhone viewport): welcome screen → send message → GLM streams reply → multi-turn context works → reload persists conversations → switch conversations restores history → new chat works. VLM confirmed cohesive iOS 26 Liquid Glass aesthetic.
+
+Stage Summary:
+- App rebuilt as "Aria" personal AI chatbot. GLM-powered streaming chat, Supabase-backed (localStorage fallback for preview), iOS 26 Liquid Glass UI.
+- Vercel-ready: env-var driven, no local-only deps, .env.example + supabase/schema.sql included.
+- To deploy: push to GitHub → import to Vercel → add env vars (Supabase URL/key + GLM_API_KEY) → run schema.sql in Supabase.

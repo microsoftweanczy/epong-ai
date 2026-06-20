@@ -116,15 +116,25 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body {
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
+    /* iOS 26 — SF Pro system font stack */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+      system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.01em;
   }
 }
 
-/* ---- FamilyChat mobile utilities ---- */
+/* ---------- iOS 26 "Liquid Glass" design utilities ---------- */
 
-/* Safe-area insets for notched / rounded mobile devices */
+/* Safe-area insets for notched / rounded-edge devices */
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
@@ -136,10 +146,44 @@
   padding-right: env(safe-area-inset-right);
 }
 
-/* Refined scrollbar for chat lists / message panes */
+/* Liquid glass material — frosted, saturated, with a subtle specular edge */
+.glass {
+  background-color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.glass-dark {
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.glass-bar {
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Animated mesh-gradient backdrop (the canvas the glass floats over) */
+.mesh-bg {
+  background-color: #eef2ff;
+  background-image:
+    radial-gradient(at 18% 22%, rgba(99, 102, 241, 0.45) 0px, transparent 55%),
+    radial-gradient(at 82% 18%, rgba(236, 72, 153, 0.38) 0px, transparent 55%),
+    radial-gradient(at 75% 78%, rgba(14, 165, 233, 0.42) 0px, transparent 55%),
+    radial-gradient(at 22% 82%, rgba(168, 85, 247, 0.4) 0px, transparent 55%),
+    radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.25) 0px, transparent 60%);
+}
+
+/* iOS-style refined scrollbar */
 .thin-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(37, 99, 235, 0.25) transparent;
+  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
 }
 .thin-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -149,14 +193,92 @@
   background: transparent;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(37, 99, 235, 0.25);
+  background-color: rgba(99, 102, 241, 0.3);
   border-radius: 9999px;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(37, 99, 235, 0.4);
 }
 
 /* Smooth tap feedback on interactive rows */
 .tap-feedback {
-  transition: background-color 120ms ease;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.tap-feedback:active {
+  transform: scale(0.98);
+}
+
+/* Markdown content inside assistant bubbles */
+.md-body {
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.md-body p {
+  margin: 0 0 0.6em;
+}
+.md-body p:last-child {
+  margin-bottom: 0;
+}
+.md-body strong {
+  font-weight: 600;
+}
+.md-body ul,
+.md-body ol {
+  margin: 0.3em 0 0.6em;
+  padding-left: 1.3em;
+}
+.md-body li {
+  margin: 0.15em 0;
+}
+.md-body code {
+  background: rgba(15, 23, 42, 0.08);
+  padding: 0.1em 0.38em;
+  border-radius: 6px;
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+.md-body pre {
+  background: rgba(15, 23, 42, 0.9);
+  color: #f1f5f9;
+  padding: 0.85em 1em;
+  border-radius: 14px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.md-body pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.md-body a {
+  color: #0a84ff;
+  text-decoration: none;
+  font-weight: 500;
+}
+.md-body a:hover {
+  text-decoration: underline;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3 {
+  font-weight: 650;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.25;
+}
+.md-body h1 {
+  font-size: 1.25em;
+}
+.md-body h2 {
+  font-size: 1.12em;
+}
+.md-body h3 {
+  font-size: 1.02em;
+}
+.md-body blockquote {
+  border-left: 3px solid rgba(99, 102, 241, 0.4);
+  padding-left: 0.8em;
+  margin: 0.4em 0;
+  color: inherit;
+  opacity: 0.85;
 }

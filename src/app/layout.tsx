@@ -1,43 +1,32 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "FamilyChat - Chat with your family",
-  description: "A private, real-time WhatsApp-style chat for your family. Free and simple.",
-  keywords: ["FamilyChat", "chat", "family", "messaging", "WhatsApp clone"],
-  authors: [{ name: "FamilyChat" }],
+  title: "Aria — Your Personal AI",
+  description:
+    "A beautiful personal AI chatbot powered by GLM. iOS 26 Liquid Glass design, Supabase-backed, Vercel-ready.",
+  keywords: ["AI", "chatbot", "GLM", "assistant", "Aria"],
+  authors: [{ name: "Aria" }],
   openGraph: {
-    title: "FamilyChat",
-    description: "A private real-time chat for your family",
+    title: "Aria — Your Personal AI",
+    description: "A beautiful personal AI chatbot powered by GLM.",
     type: "website",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "FamilyChat",
-    description: "A private real-time chat for your family",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Aria",
   },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#1E3A8A",
+  themeColor: "#6366F1",
 };
 
 export default function RootLayout({
@@ -47,11 +36,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
+      <body className="antialiased">
         {children}
-        <Toaster />
         <SonnerToaster position="top-center" richColors closeButton />
       </body>
     </html>
