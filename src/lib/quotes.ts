@@ -178,59 +178,44 @@ export function pickQuote(
 ): Quote {
   // 1. Gather all user context text
   const memoryText = (memory || []).map((m) => m.content.toLowerCase()).join(' ')
-  const profileText = (behaviorProfile || '').toLowerCase()
-  const context = `${memoryText} ${profileText}`
+  const context = `${memoryText} ${behaviorProfile || ''}`.toLowerCase()
 
-  // 2. Score each category by keyword matches in user context
+  // 2. Score categories by keyword matches + preference biases
   const scores: Partial<Record<QuoteCategory, number>> = {}
+  const addScore = (cat: QuoteCategory, n: number) =>
+    (scores[cat] = (scores[cat] || 0) + n)
+
   for (const { keywords, category } of KEYWORD_MAP) {
-    let score = 0
-    for (const kw of keywords) {
-      if (context.includes(kw)) score += 1
-    }
-    if (score > 0) scores[category] = (scores[category] || 0) + score
+    const matches = keywords.filter((kw) => context.includes(kw)).length
+    if (matches > 0) addScore(category, matches)
   }
 
-  // 3. Bias by preferences
   if (prefs) {
-    // humor preference → boost humor quotes
-    if (prefs.humor === 'sering') scores.humor = (scores.humor || 0) + 2
-    else if (prefs.humor === 'sedikit' && Math.random() < 0.25)
-      scores.humor = (scores.humor || 0) + 1
-    // formal tone → less humor, more bijak
+    if (prefs.humor === 'sering') addScore('humor', 2)
+    else if (prefs.humor === 'sedikit' && Math.random() < 0.25) addScore('humor', 1)
     if (prefs.tone === 'formal' || prefs.tone === 'profesional') {
-      scores.bijak = (scores.bijak || 0) + 1
+      addScore('bijak', 1)
       scores.humor = Math.max(0, (scores.humor || 0) - 1)
     }
-    // akrab/santai → more humor
-    if (prefs.tone === 'akrab' || prefs.tone === 'santai') {
-      scores.humor = (scores.humor || 0) + 0.5
-    }
-    // language preference: bias quote language to match
+    if (prefs.tone === 'akrab' || prefs.tone === 'santai') addScore('humor', 0.5)
   }
 
-  // 4. Find best-matched category (with some randomness for ties)
+  // 3. Pick the best category (random among top-scorers to break ties)
   const entries = Object.entries(scores) as [QuoteCategory, number][]
   let pool: Quote[]
-
   if (entries.length > 0) {
-    // sort by score desc
     entries.sort((a, b) => b[1] - a[1])
     const topScore = entries[0][1]
-    // pick randomly among top-scored categories (within 1 of the top)
     const topCategories = entries
       .filter(([, s]) => s >= topScore - 0.5)
       .map(([c]) => c)
-    const chosenCategory = pickRandom(topCategories)
-    pool = QUOTES.filter((q) => q.category === chosenCategory)
+    pool = QUOTES.filter((q) => q.category === pickRandom(topCategories))
   } else {
-    // no context match → random wisdom/bijak
     pool = QUOTES.filter((q) => q.category === 'bijak')
   }
 
-  // 5. Filter by preferred language if set (but allow mix ~30% of the time)
-  const allowMix = Math.random() < 0.3
-  if (prefs && !allowMix) {
+  // 4. Filter by preferred language (allow mix ~30% of the time)
+  if (prefs && Math.random() >= 0.3) {
     const langPool = pool.filter((q) => q.lang === prefs.language)
     if (langPool.length > 0) pool = langPool
   }

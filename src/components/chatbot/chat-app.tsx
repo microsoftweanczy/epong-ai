@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth'
 import { useIncognito } from '@/lib/incognito'
 import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
+import { NEW_CHAT_TITLE, TITLE_MAX_LENGTH } from '@/lib/types'
 import type { MemoryNote } from '@/lib/settings'
 
 export default function ChatApp() {
@@ -116,7 +117,7 @@ export default function ChatApp() {
     }
     if (!store) return
     try {
-      const conv = await store.createConversation('Obrolan Baru')
+      const conv = await store.createConversation(NEW_CHAT_TITLE)
       setConversations((prev) => [conv, ...prev])
       skipNextLoad.current = true
       setActiveId(conv.id)
@@ -183,7 +184,7 @@ export default function ChatApp() {
       // ensure a conversation — title it from the first user message
       let convId = activeId
       if (!incognito && !convId) {
-        const title = text.slice(0, 42).trim() || 'Obrolan Baru'
+        const title = text.slice(0, TITLE_MAX_LENGTH).trim() || NEW_CHAT_TITLE
         try {
           const conv = await store!.createConversation(title)
           convId = conv.id

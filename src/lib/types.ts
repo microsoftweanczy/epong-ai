@@ -1,4 +1,4 @@
-// Shared types for the personal AI chatbot
+// Shared types & constants for the personal AI chatbot
 
 export type Role = 'user' | 'assistant' | 'system'
 
@@ -17,8 +17,15 @@ export interface ChatMessage {
   createdAt: string
 }
 
-// Message shape sent to the GLM API
+// Message shape sent to the AI providers
 export interface ApiMessage {
   role: Role
   content: string
 }
+
+// Default title for new/untitled conversations
+export const NEW_CHAT_TITLE = 'Obrolan Baru'
+
+// Max length of an auto-generated conversation title (from first user message)
+export const TITLE_MAX_LENGTH = 42
+

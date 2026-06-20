@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { NEW_CHAT_TITLE } from './types'
 import type { Conversation, ChatMessage, Role } from './types'
 
 /**
@@ -53,7 +54,7 @@ class SupabaseStore implements ChatStore {
     if (error) throw error
     return (data || []).map((r: any) => ({
       id: r.id,
-      title: r.title || 'Obrolan Baru',
+      title: r.title || NEW_CHAT_TITLE,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }))
@@ -64,7 +65,7 @@ class SupabaseStore implements ChatStore {
     const row = {
       id: uuid(),
       user_id: this.userId,
-      title: title?.trim() || 'Obrolan Baru',
+      title: title?.trim() || NEW_CHAT_TITLE,
       created_at: now,
       updated_at: now,
     }
@@ -190,7 +191,7 @@ class LocalStore implements ChatStore {
     const now = new Date().toISOString()
     const conv: Conversation = {
       id: uuid(),
-      title: title?.trim() || 'Obrolan Baru',
+      title: title?.trim() || NEW_CHAT_TITLE,
       createdAt: now,
       updatedAt: now,
     }
