@@ -3,13 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Quote as QuoteIcon } from 'lucide-react'
 import { Logo } from './logo'
-import { pickQuote, type Quote } from '@/lib/quotes'
-import { useSettings } from '@/lib/settings'
 
 interface DisplayQuote {
   text: string
   author?: string
-  label: string
 }
 
 interface Props {
@@ -22,34 +19,18 @@ export function Welcome({ userName }: Props) {
     ? `Halo, ${name}! Apa kabar hari ini?`
     : 'Halo! Apa kabar?'
 
-  const { prefs, memory, behaviorProfile } = useSettings()
+  const [quote, setQuote] = useState<DisplayQuote | null>(null)
 
-  // Start with a local context-aware quote instantly (no flash of empty).
-  const [quote, setQuote] = useState<DisplayQuote>(() => {
-    const local = pickQuote(memory, behaviorProfile, prefs)
-    return {
-      text: local.text,
-      label: categoryLabel(local.category),
-    }
-  })
-
-  // Then fetch a real quote from the free API (Quotable/ZenQuotes/dummyjson)
-  // in the background. If it succeeds, replace the local one.
+  // Fetch a real quote from the API only
   useEffect(() => {
     let cancelled = false
     fetch('/api/quote')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data?.text) return
-        setQuote({
-          text: data.text,
-          author: data.author,
-          label: authorAwareLabel(data.text),
-        })
+        setQuote({ text: data.text, author: data.author })
       })
-      .catch(() => {
-        /* keep the local quote */
-      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
@@ -67,21 +48,29 @@ export function Welcome({ userName }: Props) {
         {greeting}
       </h1>
 
-      {/* Personalized quote card — glass panel for better readability */}
+      {/* Quote card — from API only */}
       <div className="mt-7 w-full max-w-md">
         <div className="glass rounded-3xl px-6 py-5 shadow-md">
           <div className="mb-2 flex items-center justify-center gap-2">
             <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-indigo-400">
-              {quote.label}
+              Kata mutiara
             </span>
           </div>
-          <p className="text-center text-[17px] font-medium leading-relaxed text-slate-800 dark:text-slate-100">
-            &ldquo;{quote.text}&rdquo;
-          </p>
-          {quote.author && (
-            <p className="mt-2 text-center text-[12px] text-slate-400">
-              — {quote.author}
+          {quote ? (
+            <>
+              <p className="text-center text-[17px] font-medium leading-relaxed text-slate-800 dark:text-slate-100">
+                &ldquo;{quote.text}&rdquo;
+              </p>
+              {quote.author && (
+                <p className="mt-2 text-center text-[12px] text-slate-400">
+                  — {quote.author}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-center text-[17px] leading-relaxed text-slate-400">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#0A84FF] align-middle" />
             </p>
           )}
         </div>
@@ -97,20 +86,4 @@ export function Welcome({ userName }: Props) {
       </p>
     </div>
   )
-}
-
-function categoryLabel(category: string): string {
-  if (category === 'motivasi' || category === 'keberanian') return 'Semangat untukmu'
-  if (category === 'tenang') return 'Untukmu hari ini'
-  return 'Kata mutiara'
-}
-
-// Detect motivation/calm keywords in an API quote (English) to pick a label
-function authorAwareLabel(text: string): string {
-  const t = text.toLowerCase()
-  const motivate = ['courage', 'begin', 'start', 'dream', 'goal', 'success', 'strength', 'forward', 'rise', 'fight', 'believe', 'possible']
-  const calm = ['peace', 'breathe', 'calm', 'rest', 'still', 'quiet', 'silence', 'patience']
-  if (motivate.some((k) => t.includes(k))) return 'Semangat untukmu'
-  if (calm.some((k) => t.includes(k))) return 'Untukmu hari ini'
-  return 'Kata mutiara'
 }
