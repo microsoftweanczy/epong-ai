@@ -1,17 +1,19 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Menu, SquarePen } from 'lucide-react'
+import { Menu, SquarePen, EyeOff } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
 import { Welcome } from './welcome'
 import { SettingsPanel } from './settings-panel'
 import { LoginScreen } from './login-screen'
+import { IncognitoToggle } from './incognito-toggle'
 import { getStore, onStorageResolved } from '@/lib/storage'
 import { useThemeSync } from '@/lib/theme'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
+import { useIncognito } from '@/lib/incognito'
 import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
 
@@ -119,6 +121,13 @@ export default function ChatApp() {
 
   // ---- new conversation ----
   const handleNew = useCallback(async () => {
+    // In incognito mode, just clear in-memory messages (no storage)
+    if (useIncognito.getState().enabled) {
+      setActiveId(null)
+      setMessages([])
+      setSidebarOpen(false)
+      return
+    }
     if (!store) return
     try {
       const conv = await store.createConversation('Obrolan Baru')
@@ -180,13 +189,17 @@ export default function ChatApp() {
   // ---- send a message (with streaming) ----
   const handleSend = useCallback(
     async (text: string) => {
-      if (!store) return
+      // Incognito mode: no storage at all — pure in-memory chat
+      const incognito = useIncognito.getState().enabled
+
+      if (!incognito && !store) return
+
       // ensure a conversation — title it from the first user message
       let convId = activeId
-      if (!convId) {
+      if (!incognito && !convId) {
         const title = text.slice(0, 42).trim() || 'Obrolan Baru'
         try {
-          const conv = await store.createConversation(title)
+          const conv = await store!.createConversation(title)
           convId = conv.id
           setConversations((prev) => [conv, ...prev])
           skipNextLoad.current = true
@@ -196,6 +209,7 @@ export default function ChatApp() {
           return
         }
       }
+      if (!convId) convId = 'incognito-session'
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -216,11 +230,11 @@ export default function ChatApp() {
       setMessages((prev) => [...prev, userMsg, assistantMsg])
       setStreamingId(assistantMsg.id)
 
-      // persist user message
-      store
-        .addMessage(convId, 'user', text)
-        .catch((e) => console.error(e))
-      store.touchConversation(convId).catch(() => {})
+      // persist user message (skip in incognito)
+      if (!incognito) {
+        store!.addMessage(convId, 'user', text).catch((e) => console.error(e))
+        store!.touchConversation(convId).catch(() => {})
+      }
 
       // build API payload from current messages + the new user text
       const apiMessages: ApiMessage[] = [...messages, userMsg].map((m) => ({
@@ -285,19 +299,25 @@ export default function ChatApp() {
           }
         }
 
-        // persist the assistant reply
-        await store.addMessage(convId, 'assistant', accumulated || '_(no response)_')
-        store.touchConversation(convId).catch(() => {})
-        refreshConvos()
+        // persist the assistant reply (skip in incognito)
+        if (!incognito) {
+          await store!.addMessage(convId, 'assistant', accumulated || '_(no response)_')
+          store!.touchConversation(convId).catch(() => {})
+          refreshConvos()
+        }
       } catch (e: any) {
         if (e.name === 'AbortError') {
-          // user stopped; persist partial
-          if (accumulated) {
-            store.addMessage(convId, 'assistant', accumulated).catch(() => {})
-          } else {
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== assistantMsg.id)
-            )
+          // user stopped; persist partial (skip in incognito)
+          if (!incognito) {
+            if (accumulated) {
+              store!.addMessage(convId, 'assistant', accumulated).catch(() => {})
+            } else {
+              setMessages((prev) =>
+                prev.filter((m) => m.id !== assistantMsg.id)
+              )
+            }
+          } else if (!accumulated) {
+            setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id))
           }
         } else {
           console.error(e)
@@ -323,6 +343,7 @@ export default function ChatApp() {
 
   const activeConv = conversations.find((c) => c.id === activeId) || null
   const showWelcome = !activeId && !loadingConvos && messages.length === 0
+  const incognito = useIncognito((s) => s.enabled)
 
   // ---- auth gate: show login screen if not authenticated (and not loading) ----
   if (!authLoading && !user) {
@@ -381,6 +402,7 @@ export default function ChatApp() {
               {activeConv?.title || 'Epong AI'}
             </h1>
           </div>
+          <IncognitoToggle />
           <button
             onClick={handleNew}
             className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10"
@@ -389,6 +411,16 @@ export default function ChatApp() {
             <SquarePen className="h-5 w-5" />
           </button>
         </header>
+
+        {/* Incognito mode banner */}
+        {incognito && (
+          <div className="mx-2 mb-1 flex items-center justify-center gap-2 rounded-full bg-violet-500/10 px-4 py-1.5 sm:mx-3">
+            <EyeOff className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+            <span className="text-[12px] font-medium text-violet-700 dark:text-violet-300">
+              Mode penyamaran — obrolan tidak disimpan
+            </span>
+          </div>
+        )}
 
         {/* Body */}
         {showWelcome ? (
