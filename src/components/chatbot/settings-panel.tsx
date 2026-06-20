@@ -191,6 +191,20 @@ export function SettingsPanel({ open, onClose }: Props) {
                 />
               </Field>
 
+              <Field label="Mesin AI" desc="Pilih provider AI utama (auto = switch otomatis)">
+                <SegmentedOptions
+                  value={prefs.provider}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'glm', label: 'GLM' },
+                    { value: 'openrouter', label: 'OpenRouter' },
+                  ]}
+                  onChange={(v) =>
+                    setPrefs({ provider: v as 'auto' | 'glm' | 'openrouter' })
+                  }
+                />
+              </Field>
+
               <ToggleRow
                 icon={Heart}
                 label="Empati emosional"
@@ -416,12 +430,23 @@ function Section({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  desc,
+  children,
+}: {
+  label: string
+  desc?: string
+  children: React.ReactNode
+}) {
   return (
     <div>
       <label className="mb-1.5 block text-[13px] font-medium text-slate-600 dark:text-slate-300">
         {label}
       </label>
+      {desc && (
+        <p className="-mt-1 mb-1.5 text-[11px] text-slate-400">{desc}</p>
+      )}
       {children}
     </div>
   )

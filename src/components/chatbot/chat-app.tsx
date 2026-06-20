@@ -239,6 +239,7 @@ export default function ChatApp() {
             prefs,
             memory,
             behaviorProfile,
+            provider: prefs.provider,
           }),
           signal: controller.signal,
         })

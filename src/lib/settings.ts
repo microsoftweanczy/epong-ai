@@ -11,6 +11,7 @@ import { supabase } from './supabase'
 export type ToneStyle = 'santai' | 'profesional' | 'akrab' | 'formal'
 export type Verbosity = 'ringkas' | 'seimbang' | 'rinci'
 export type HumorLevel = 'nonaktif' | 'sedikit' | 'sering'
+export type AIProvider = 'auto' | 'glm' | 'openrouter'
 
 export interface Preferences {
   tone: ToneStyle
@@ -19,6 +20,7 @@ export interface Preferences {
   empathy: boolean // adapt to user's emotion
   critical: boolean // challenge ideas critically when needed
   language: 'id' | 'en' // response language
+  provider: AIProvider // which AI backend to prefer
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -28,6 +30,7 @@ const DEFAULT_PREFS: Preferences = {
   empathy: true,
   critical: true,
   language: 'id',
+  provider: 'auto',
 }
 
 // ────────────────────────────────────────────────────────────

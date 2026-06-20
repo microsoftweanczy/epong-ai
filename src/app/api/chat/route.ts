@@ -5,19 +5,25 @@ import type { Preferences, MemoryNote } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 /**
- * Streaming chat completion endpoint powered by GLM.
+ * Streaming chat completion endpoint with smart multi-provider switching.
  *
- * Two backends, picked automatically:
- *  1. If GLM_API_KEY (and optionally GLM_BASE_URL) is set -> direct call to the
- *     OpenAI-compatible GLM endpoint (Vercel / production).
- *  2. Otherwise -> the z-ai-web-dev-sdk (preview environment).
+ * Providers (tried in order based on availability + user preference):
+ *  1. GLM (Zhipu AI)  — when GLM_API_KEY is set
+ *  2. OpenRouter      — when OPENROUTER_API_KEY is set (access many models)
+ *  3. z-ai-web-dev-sdk — built-in preview fallback (always available here)
+ *
+ * If a provider fails, it automatically falls back to the next — so the bot
+ * always responds. The client can hint a preferred provider via `provider`.
  *
  * Response: Server-Sent Events stream of text deltas:
  *   data: {"content":"hello"}\n\n
  *   data: [DONE]\n\n
  */
+
+type Provider = 'auto' | 'glm' | 'openrouter'
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -26,6 +32,7 @@ export async function POST(req: NextRequest) {
     prefs?: Preferences | null
     memory?: MemoryNote[] | null
     behaviorProfile?: string | null
+    provider?: Provider
   }
   try {
     body = await req.json()
@@ -50,6 +57,25 @@ export async function POST(req: NextRequest) {
     ...history,
   ]
 
+  // Determine provider order based on user preference + what's configured
+  const preferred = body.provider || 'auto'
+  const hasGLM = !!process.env.GLM_API_KEY
+  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY
+
+  // Build the ordered list of providers to try
+  const providers: Provider[] = []
+  if (preferred === 'glm') {
+    if (hasGLM) providers.push('glm')
+    if (hasOpenRouter) providers.push('openrouter')
+  } else if (preferred === 'openrouter') {
+    if (hasOpenRouter) providers.push('openrouter')
+    if (hasGLM) providers.push('glm')
+  } else {
+    // auto: try GLM first (familiar), then OpenRouter
+    if (hasGLM) providers.push('glm')
+    if (hasOpenRouter) providers.push('openrouter')
+  }
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -58,33 +84,42 @@ export async function POST(req: NextRequest) {
           encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)
         )
 
-      try {
-        let success = false
-        // ---- Branch 1: direct GLM API (production / Vercel) ----
-        if (process.env.GLM_API_KEY) {
-          try {
+      let success = false
+
+      // ---- Try each configured provider in order ----
+      for (const provider of providers) {
+        if (success) break
+        try {
+          if (provider === 'glm') {
             await streamFromGLM(messages, send)
-            success = true
-          } catch (glmError: any) {
-            console.error('[chat] GLM failed, falling back to z-ai SDK:', glmError?.message)
-            // Don't throw — fall through to z-ai SDK fallback below
+          } else if (provider === 'openrouter') {
+            await streamFromOpenRouter(messages, send)
           }
+          success = true
+        } catch (e: any) {
+          console.error(`[chat] ${provider} failed:`, e?.message)
+          // continue to next provider
         }
-        // ---- Branch 2: z-ai-web-dev-sdk (preview OR fallback when GLM fails) ----
-        if (!success) {
-          await streamFromZAI(messages, send)
-        }
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-      } catch (e: any) {
-        console.error('[chat] all backends failed:', e)
-        // Send a visible error message so the user knows what happened
-        send({
-          content: `*(Maaf, terjadi kesalahan: ${e?.message || 'AI tidak merespons'}. Coba lagi sebentar ya.)*`,
-        })
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-      } finally {
-        controller.close()
       }
+
+      // ---- Final fallback: z-ai-web-dev-sdk (always available in preview) ----
+      if (!success) {
+        try {
+          await streamFromZAI(messages, send)
+          success = true
+        } catch (e: any) {
+          console.error('[chat] z-ai SDK failed:', e?.message)
+        }
+      }
+
+      if (!success) {
+        send({
+          content: `*(Maaf, semua AI provider sedang bermasalah. Coba lagi sebentar ya.)*`,
+        })
+      }
+
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+      controller.close()
     },
   })
 
@@ -105,7 +140,7 @@ async function streamFromGLM(
   send: (obj: unknown) => void
 ) {
   const base = process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4'
-  const model = process.env.GLM_MODEL || 'glm-4.5-flash' // free tier model (works with current key)
+  const model = process.env.GLM_MODEL || 'glm-4.5-flash'
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -117,7 +152,60 @@ async function streamFromGLM(
 
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
-    throw new Error(`GLM API error ${res.status}: ${text.slice(0, 200)}`)
+    throw new Error(`GLM ${res.status}: ${text.slice(0, 200)}`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const payload = trimmed.slice(5).trim()
+      if (payload === '[DONE]') continue
+      try {
+        const json = JSON.parse(payload)
+        const delta = json?.choices?.[0]?.delta?.content
+        if (delta) send({ content: delta })
+      } catch {
+        /* ignore partial json */
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------- OpenRouter call
+
+async function streamFromOpenRouter(
+  messages: ApiMessage[],
+  send: (obj: unknown) => void
+) {
+  const base = 'https://openrouter.ai/api/v1'
+  // Default to a strong free model; override with OPENROUTER_MODEL env var
+  const model =
+    process.env.OPENROUTER_MODEL ||
+    'meta-llama/llama-3.3-70b-instruct:free'
+  const res = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      // OpenRouter recommends these for ranking/identification
+      'HTTP-Referer': 'https://epong-ai.vercel.app',
+      'X-Title': 'Epong AI',
+    },
+    body: JSON.stringify({ model, messages, stream: true }),
+  })
+
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`OpenRouter ${res.status}: ${text.slice(0, 200)}`)
   }
 
   const reader = res.body.getReader()
@@ -163,8 +251,6 @@ async function streamFromZAI(
   messages: ApiMessage[],
   send: (obj: unknown) => void
 ) {
-  // Dynamic import so this only loads when needed (keeps Vercel bundle clean
-  // when deploying with a real GLM key).
   const ZAIModule = await import('z-ai-web-dev-sdk')
   const ZAI = ZAIModule.default
   const zai = await ZAI.create()
@@ -179,8 +265,6 @@ async function streamFromZAI(
     } as any)
 
     if (completion && typeof completion[Symbol.asyncIterator] === 'function') {
-      // The SDK yields raw SSE text (one or more buffered chunks).
-      // Parse every `data:` line and emit the content deltas.
       for await (const chunk of completion as AsyncIterable<unknown>) {
         const text = decodeChunk(chunk)
         for (const line of text.split('\n')) {
@@ -201,7 +285,6 @@ async function streamFromZAI(
         }
       }
     } else {
-      // Not iterable -> treat as a normal completion object.
       const content = completion?.choices?.[0]?.message?.content
       if (content) {
         emitted = true
@@ -212,7 +295,6 @@ async function streamFromZAI(
     /* fall through to non-streaming fallback */
   }
 
-  // Fallback: non-streaming completion if nothing was streamed.
   if (!emitted) {
     const completion: any = await zai.chat.completions.create({
       messages,
