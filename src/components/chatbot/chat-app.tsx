@@ -1,12 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Menu, SquarePen } from 'lucide-react'
+import { Menu, SquarePen, Settings } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
 import { Welcome } from './welcome'
+import { SettingsPanel } from './settings-panel'
 import { getStore, onStorageResolved } from '@/lib/storage'
+import { useThemeSync } from '@/lib/theme'
+import { useSettings } from '@/lib/settings'
 import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
 
@@ -18,7 +21,15 @@ export default function ChatApp() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [backend, setBackend] = useState<'supabase' | 'local'>('local')
+
+  // keep theme in sync + load user memory on mount
+  useThemeSync()
+  const { prefs, memory, behaviorProfile, loadMemory } = useSettings()
+  useEffect(() => {
+    loadMemory()
+  }, [loadMemory])
 
   const abortRef = useRef<AbortController | null>(null)
   const skipNextLoad = useRef(false)
@@ -28,7 +39,6 @@ export default function ChatApp() {
   useEffect(() => {
     onStorageResolved((b, reason) => {
       setBackend(b)
-      ;(window as any).__ariaBackend = b
       if (b === 'local' && reason === 'supabase-unavailable') {
         toast.warning(
           'Tabel Supabase belum ditemukan — menyimpan secara lokal untuk sekarang. Jalankan skema SQL di dashboard Supabase Anda untuk mengaktifkan sinkronisasi cloud.',
@@ -197,7 +207,13 @@ export default function ChatApp() {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, conversationId: convId }),
+          body: JSON.stringify({
+            messages: apiMessages,
+            conversationId: convId,
+            prefs,
+            memory,
+            behaviorProfile,
+          }),
           signal: controller.signal,
         })
 
@@ -269,7 +285,7 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos]
+    [activeId, messages, store, refreshConvos, prefs, memory, behaviorProfile]
   )
 
   const handleStop = useCallback(() => {
@@ -291,6 +307,10 @@ export default function ChatApp() {
         onNew={handleNew}
         onDelete={handleDelete}
         onRename={handleRename}
+        onSettings={() => {
+          setSidebarOpen(false)
+          setSettingsOpen(true)
+        }}
       />
 
       {/* Main */}
@@ -311,10 +331,17 @@ export default function ChatApp() {
           </div>
           <button
             onClick={handleNew}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10"
             aria-label="Obrolan baru"
           >
             <SquarePen className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10"
+            aria-label="Pengaturan"
+          >
+            <Settings className="h-5 w-5" />
           </button>
         </header>
 
@@ -341,6 +368,12 @@ export default function ChatApp() {
           busy={streamingId !== null}
         />
       </main>
+
+      {/* Settings */}
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   )
 }

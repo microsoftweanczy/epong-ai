@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
+import { buildSystemPrompt } from '@/lib/prompt'
+import type { Preferences, MemoryNote } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -9,23 +11,22 @@ export const dynamic = 'force-dynamic'
  *
  * Two backends, picked automatically:
  *  1. If GLM_API_KEY (and optionally GLM_BASE_URL) is set -> direct call to the
- *     OpenAI-compatible GLM endpoint. This is what you use on Vercel with your
- *     own free GLM API key from https://open.bigmodel.cn
- *  2. Otherwise -> the z-ai-web-dev-sdk (works in this preview environment).
+ *     OpenAI-compatible GLM endpoint (Vercel / production).
+ *  2. Otherwise -> the z-ai-web-dev-sdk (preview environment).
  *
  * Response: Server-Sent Events stream of text deltas:
  *   data: {"content":"hello"}\n\n
  *   data: [DONE]\n\n
  */
 
-const SYSTEM_PROMPT =
-  'Kamu adalah Epong AI, asisten AI pribadi yang hangat dan ringkas. ' +
-  'Selalu jawab dalam Bahasa Indonesia yang natural dan ramah. ' +
-  'Jawab dengan jelas dan membantu. Gunakan Markdown untuk struktur jika perlu. ' +
-  'Jaga agar respons tetap fokus dan bersahabat.'
-
 export async function POST(req: NextRequest) {
-  let body: { messages?: ApiMessage[]; conversationId?: string }
+  let body: {
+    messages?: ApiMessage[]
+    conversationId?: string
+    prefs?: Preferences | null
+    memory?: MemoryNote[] | null
+    behaviorProfile?: string | null
+  }
   try {
     body = await req.json()
   } catch {
@@ -36,10 +37,16 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  // Build the message list: system + trimmed history (last 20) for token safety
+  // Build the dynamic system prompt from user prefs + memory + behavior
+  const systemPrompt = buildSystemPrompt(
+    body.prefs ?? null,
+    body.memory ?? null,
+    body.behaviorProfile ?? null
+  )
+  // Trim history (last 20) for token safety
   const history = incoming.slice(-20)
   const messages: ApiMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...history,
   ]
 

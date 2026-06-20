@@ -282,3 +282,132 @@
   color: inherit;
   opacity: 0.85;
 }
+
+/* ────────────────────────────────────────────────────────────
+   DARK MODE — iOS 26 dark liquid glass
+   Light mode is untouched; these only apply under <html class="dark">.
+   Uses higher-specificity selectors so no component code needs changing.
+   ──────────────────────────────────────────────────────────── */
+
+.dark .mesh-bg {
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(at 18% 22%, rgba(99, 102, 241, 0.35) 0px, transparent 55%),
+    radial-gradient(at 82% 18%, rgba(168, 85, 247, 0.3) 0px, transparent 55%),
+    radial-gradient(at 75% 78%, rgba(14, 165, 233, 0.3) 0px, transparent 55%),
+    radial-gradient(at 22% 82%, rgba(79, 70, 229, 0.3) 0px, transparent 55%),
+    radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.15) 0px, transparent 60%);
+}
+
+.dark .glass {
+  background-color: rgba(30, 41, 59, 0.55);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.dark .glass-bar {
+  background-color: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* Text color remap — slate-800/600/500/400 → lighter shades in dark */
+.dark .text-slate-800 {
+  color: rgb(241 245 249);
+}
+.dark .text-slate-700 {
+  color: rgb(226 232 240);
+}
+.dark .text-slate-600 {
+  color: rgb(203 213 225);
+}
+.dark .text-slate-500 {
+  color: rgb(148 163 184);
+}
+.dark .text-slate-400 {
+  color: rgb(100 116 139);
+}
+
+/* Backgrounds remap */
+.dark .bg-white {
+  background-color: rgb(30 41 59);
+}
+.dark .bg-white\/40 {
+  background-color: rgba(30, 41, 59, 0.4);
+}
+.dark .bg-white\/70 {
+  background-color: rgba(30, 41, 59, 0.7);
+}
+.dark .bg-white\/80 {
+  background-color: rgba(30, 41, 59, 0.8);
+}
+.dark .bg-white\/85 {
+  background-color: rgba(30, 41, 59, 0.85);
+}
+.dark .bg-white\/60 {
+  background-color: rgba(30, 41, 59, 0.6);
+}
+.dark .hover\:bg-slate-900\/5:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.dark .hover\:bg-white\/40:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Borders in dark */
+.dark .border-white\/40 {
+  border-color: rgba(148, 163, 184, 0.15);
+}
+.dark .border-gray-200 {
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+/* Hover row backgrounds */
+.dark .hover\:bg-\[\#f1f5fb\]:hover {
+  background-color: rgba(99, 102, 241, 0.12);
+}
+.dark .active\:bg-\[\#e2eaf6\]:active {
+  background-color: rgba(99, 102, 241, 0.18);
+}
+
+/* Markdown code blocks stay dark (already dark), inline code tweak */
+.dark .md-body code {
+  background: rgba(148, 163, 184, 0.15);
+}
+.dark .md-body a {
+  color: #60a5fa;
+}
+
+/* Selected chip background in dark */
+.dark .bg-\[\#2563EB\]\/12 {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+.dark .bg-\[\#2563EB\]\/10 {
+  background-color: rgba(99, 102, 241, 0.15);
+}
+.dark .bg-\[\#2563EB\]\/15 {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Stop button in dark */
+.dark .bg-slate-800 {
+  background-color: rgb(71 85 105);
+}
+.dark .hover\:bg-slate-700:hover {
+  background-color: rgb(51 65 85);
+}
+
+/* Search input bg */
+.dark .bg-\[\#eef2f9\],
+.dark .bg-\[\#f0f2f5\],
+.dark .bg-\[\#F1F5FB\] {
+  background-color: rgba(30, 41, 59, 0.6);
+}
+.dark .focus\:bg-\[\#e4ebf6\]:focus {
+  background-color: rgba(30, 41, 59, 0.8);
+}

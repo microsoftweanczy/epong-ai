@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MessageSquare, Trash2, X, Pencil, Check } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
 import { formatListTime } from '@/lib/format'
 import { Logo } from './logo'
@@ -16,6 +16,7 @@ interface Props {
   onNew: () => void
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
+  onSettings: () => void
 }
 
 export function Sidebar({
@@ -28,6 +29,7 @@ export function Sidebar({
   onNew,
   onDelete,
   onRename,
+  onSettings,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -167,13 +169,20 @@ export function Sidebar({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-white/40 px-4 py-3">
-            <p className="text-[11px] leading-relaxed text-slate-400">
+          <div className="border-t border-white/40 px-3 py-2.5">
+            <button
+              onClick={onSettings}
+              className="tap-feedback mb-1.5 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="text-[14px] font-medium">Pengaturan</span>
+            </button>
+            <p className="px-1 text-[11px] leading-relaxed text-slate-400">
               Didukung oleh GLM ·{' '}
               {backend === 'supabase' ? (
                 <span className="font-medium text-emerald-600">Supabase terhubung</span>
               ) : (
-                <span className="text-amber-600">Penyimpanan lokal (jalankan skema SQL untuk sinkronisasi)</span>
+                <span className="text-amber-600">Penyimpanan lokal</span>
               )}
             </p>
           </div>

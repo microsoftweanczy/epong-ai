@@ -22,6 +22,15 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
   }, [value])
 
+  // Auto-focus on mount so the mobile keyboard stands by immediately.
+  // Slight delay lets the page settle (iOS sometimes needs this).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      taRef.current?.focus({ preventScroll: true })
+    }, 350)
+    return () => clearTimeout(t)
+  }, [])
+
   const submit = () => {
     const text = value.trim()
     if (!text || busy) return
