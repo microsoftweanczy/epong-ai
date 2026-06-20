@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MessageSquare, Trash2, X, Sparkles, Pencil, Check } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, X, Pencil, Check } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
 import { formatListTime } from '@/lib/format'
+import { Logo } from './logo'
 
 interface Props {
   conversations: Conversation[]
@@ -60,12 +61,10 @@ export function Sidebar({
         <div className="safe-top safe-x glass m-2 flex h-[calc(100dvh-1rem)] flex-col rounded-[28px] sm:m-3 sm:h-[calc(100dvh-1.5rem)]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 pb-2 pt-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-white shadow-sm">
-                <Sparkles className="h-4 w-4" />
-              </div>
+            <div className="flex items-center gap-2.5">
+              <Logo size={34} />
               <span className="text-[17px] font-semibold tracking-tight text-slate-800">
-                Aria
+                Epong AI
               </span>
             </div>
             <button

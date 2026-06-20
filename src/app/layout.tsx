@@ -3,20 +3,28 @@ import "./globals.css";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Aria — Your Personal AI",
+  title: "Epong AI — Your Personal AI",
   description:
     "A beautiful personal AI chatbot powered by GLM. iOS 26 Liquid Glass design, Supabase-backed, Vercel-ready.",
-  keywords: ["AI", "chatbot", "GLM", "assistant", "Aria"],
-  authors: [{ name: "Aria" }],
-  openGraph: {
-    title: "Aria — Your Personal AI",
-    description: "A beautiful personal AI chatbot powered by GLM.",
-    type: "website",
+  keywords: ["AI", "chatbot", "GLM", "assistant", "Epong AI"],
+  authors: [{ name: "Epong AI" }],
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/favicon.ico", sizes: "any" },
+      { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Aria",
+    title: "Epong AI",
+  },
+  openGraph: {
+    title: "Epong AI — Your Personal AI",
+    description: "A beautiful personal AI chatbot powered by GLM.",
+    type: "website",
   },
 };
 

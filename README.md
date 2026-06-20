@@ -1,4 +1,4 @@
-# Aria — Personal AI Chatbot
+# Epong AI — Personal AI Chatbot
 
 A beautiful personal AI chatbot with an **iOS 26 "Liquid Glass"** design, powered by **GLM 4.5 Flash**, backed by **Supabase**, and optimized for **Vercel** deployment.
 
@@ -32,8 +32,8 @@ A beautiful personal AI chatbot with an **iOS 26 "Liquid Glass"** design, powere
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/aria-chat.git
-cd aria-chat
+git clone https://github.com/YOUR_USERNAME/epong-ai.git
+cd epong-ai
 bun install
 ```
 
@@ -75,7 +75,7 @@ Open `http://localhost:3000` 🎉
 3. Add the environment variables (same as `.env.local`)
 4. Click **Deploy**
 
-You'll get a live URL like `aria-chat.vercel.app`.
+You'll get a live URL like `epong-ai.vercel.app`.
 
 ### Add to your phone's home screen
 

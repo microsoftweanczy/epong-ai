@@ -2,9 +2,9 @@
 
 import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Sparkles } from 'lucide-react'
 import type { ChatMessage } from '@/lib/types'
 import { formatChatTime } from '@/lib/format'
+import { Logo } from './logo'
 
 interface Props {
   message: ChatMessage
@@ -34,9 +34,7 @@ function MessageBubbleBase({ message, streaming }: Props) {
   // assistant
   return (
     <div className="flex items-end gap-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-white shadow-sm">
-        <Sparkles className="h-4 w-4" />
-      </div>
+      <Logo size={32} className="shrink-0 shadow-sm" />
       <div className="flex max-w-[82%] flex-col items-start sm:max-w-[72%]">
         <div className="glass rounded-3xl rounded-bl-md px-4 py-2.5 text-slate-800 shadow-sm">
           {message.content ? (

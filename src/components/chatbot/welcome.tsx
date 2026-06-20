@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { Logo } from './logo'
 
 const SUGGESTIONS = [
   {
@@ -36,8 +36,8 @@ interface Props {
 export function Welcome({ onPick }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-white shadow-lg shadow-indigo-500/30">
-        <Sparkles className="h-8 w-8" />
+      <div className="mb-5 shadow-lg shadow-indigo-500/30">
+        <Logo size={72} />
       </div>
       <h1 className="text-[28px] font-semibold tracking-tight text-slate-800">
         How can I help?

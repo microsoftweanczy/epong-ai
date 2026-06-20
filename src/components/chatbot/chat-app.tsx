@@ -306,7 +306,7 @@ export default function ChatApp() {
           </button>
           <div className="min-w-0 flex-1 px-1">
             <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-800">
-              {activeConv?.title || 'Aria'}
+              {activeConv?.title || 'Epong AI'}
             </h1>
           </div>
           <button

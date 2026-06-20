@@ -44,7 +44,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
               }
             }}
             rows={1}
-            placeholder="Message Aria…"
+            placeholder="Message Epong AI…"
             enterKeyHint="send"
             disabled={disabled}
             className="max-h-40 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-50"
