@@ -151,3 +151,21 @@ Work Log:
 Stage Summary:
 - App now runs on user's own free GLM 4.5 Flash quota (unlimited personal use).
 - Remaining for full production: (1) run supabase/schema.sql in dashboard, (2) push to GitHub + deploy on Vercel with the 3 env vars.
+
+---
+Task ID: 13
+Agent: main
+Task: Verify Supabase cloud sync after user ran schema SQL
+
+Work Log:
+- User ran the SQL schema in their Supabase dashboard.
+- Verified via REST API: both `conversations` and `messages` tables now exist (HTTP 200) and contain data.
+- Cleared browser localStorage + reloaded → app re-probed Supabase → green toast "Connected to Supabase ✓" + sidebar footer shows green "Supabase connected".
+- Conversation "What model are you?" (created earlier) synced FROM cloud to the empty browser — proves read sync works.
+- Sent a new message "Cloud sync test, reply OK only." → GLM replied "OK". Queried Supabase REST API: both the user message AND assistant reply are now persisted in the messages table (timestamps 14:25:17 + 14:25:19). Proves write sync works.
+- All three layers confirmed: GLM 4.5 Flash (streaming) + Supabase (cloud persistence) + iOS 26 Liquid Glass UI.
+
+Stage Summary:
+- App is FULLY functional with real backend: GLM AI + Supabase cloud database.
+- Conversations now sync across all devices automatically.
+- Only remaining step for public deployment: push to GitHub → deploy on Vercel with env vars.
