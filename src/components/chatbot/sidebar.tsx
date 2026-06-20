@@ -141,20 +141,24 @@ export function Sidebar({
                     </button>
                   )}
                   {!isEditing && (
-                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 sm:opacity-0">
+                    <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
                       <button
                         onClick={() => startEdit(c)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-900/10 hover:text-slate-600"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-900/10 hover:text-slate-600 dark:hover:bg-white/10"
                         aria-label="Ganti nama"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => onDelete(c.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-red-500/15 hover:text-red-500"
+                        onClick={() => {
+                          if (confirm(`Hapus obrolan "${c.title}"?`)) {
+                            onDelete(c.id)
+                          }
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-red-500/15 hover:text-red-500"
                         aria-label="Hapus"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   )}

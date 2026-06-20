@@ -152,8 +152,10 @@ export default function ChatApp() {
           setActiveId(null)
           setMessages([])
         }
+        toast.success('Obrolan dihapus')
       } catch (e) {
         console.error(e)
+        toast.error('Gagal menghapus obrolan')
       }
     },
     [store, activeId]
