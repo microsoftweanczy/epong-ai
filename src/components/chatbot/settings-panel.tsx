@@ -132,7 +132,7 @@ export function SettingsPanel({ open, onClose }: Props) {
         <div className="mx-auto w-full max-w-2xl px-4 py-5 sm:px-6">
           {/* ── Theme ── */}
           <Section icon={Sun} title="Tema" subtitle="Tampilan terang, gelap, atau ikut sistem">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               {THEME_OPTIONS.map((opt) => {
                 const active = mode === opt.mode
                 const Icon = opt.icon
@@ -140,14 +140,20 @@ export function SettingsPanel({ open, onClose }: Props) {
                   <button
                     key={opt.mode}
                     onClick={() => setMode(opt.mode)}
-                    className={`tap-feedback flex flex-col items-center gap-2 rounded-2xl border-2 px-3 py-4 transition ${
+                    className={`tap-feedback relative flex flex-col items-center gap-2 rounded-2xl border-2 px-3 py-4 transition ${
                       active
-                        ? 'border-[#0A84FF] bg-[#0A84FF]/8'
-                        : 'border-transparent bg-slate-100 dark:bg-slate-800/60'
+                        ? 'border-[#0A84FF] bg-[#0A84FF]/10 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
                     }`}
+                    aria-pressed={active}
                   >
-                    <Icon className={`h-5 w-5 ${active ? 'text-[#0A84FF]' : 'text-slate-500'}`} />
-                    <span className={`text-[13px] font-medium ${active ? 'text-[#0A84FF]' : 'text-slate-600 dark:text-slate-300'}`}>
+                    {active && (
+                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#0A84FF] text-white shadow-sm">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    )}
+                    <Icon className={`h-6 w-6 ${active ? 'text-[#0A84FF]' : 'text-slate-500 dark:text-slate-400'}`} />
+                    <span className={`text-[13px] font-semibold ${active ? 'text-[#0A84FF]' : 'text-slate-700 dark:text-slate-200'}`}>
                       {opt.label}
                     </span>
                   </button>
