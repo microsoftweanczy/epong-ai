@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Menu, SquarePen, Settings } from 'lucide-react'
+import { Menu, SquarePen } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
@@ -335,13 +335,6 @@ export default function ChatApp() {
             aria-label="Obrolan baru"
           >
             <SquarePen className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10"
-            aria-label="Pengaturan"
-          >
-            <Settings className="h-5 w-5" />
           </button>
         </header>
 
