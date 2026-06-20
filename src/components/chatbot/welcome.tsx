@@ -1,10 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Quote as QuoteIcon } from 'lucide-react'
 import { Logo } from './logo'
 import { pickQuote, type Quote } from '@/lib/quotes'
 import { useSettings } from '@/lib/settings'
+
+interface DisplayQuote {
+  text: string
+  author?: string
+  label: string
+}
 
 interface Props {
   userName?: string | null
@@ -18,10 +24,36 @@ export function Welcome({ userName }: Props) {
 
   const { prefs, memory, behaviorProfile } = useSettings()
 
-  // Pick a fresh quote on each mount (each app open / new chat view).
-  const [quote] = useState<Quote>(() =>
-    pickQuote(memory, behaviorProfile, prefs)
-  )
+  // Start with a local context-aware quote instantly (no flash of empty).
+  const [quote, setQuote] = useState<DisplayQuote>(() => {
+    const local = pickQuote(memory, behaviorProfile, prefs)
+    return {
+      text: local.text,
+      label: categoryLabel(local.category),
+    }
+  })
+
+  // Then fetch a real quote from the free API (Quotable/ZenQuotes/dummyjson)
+  // in the background. If it succeeds, replace the local one.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/quote')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.text) return
+        setQuote({
+          text: data.text,
+          author: data.author,
+          label: authorAwareLabel(data.text),
+        })
+      })
+      .catch(() => {
+        /* keep the local quote */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
@@ -41,16 +73,17 @@ export function Welcome({ userName }: Props) {
           <div className="mb-2 flex items-center justify-center gap-2">
             <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-indigo-400">
-              {quote.category === 'motivasi' || quote.category === 'keberanian'
-                ? 'Semangat untukmu'
-                : quote.category === 'tenang'
-                  ? 'Untukmu hari ini'
-                  : 'Kata mutiara'}
+              {quote.label}
             </span>
           </div>
           <p className="text-center text-[17px] font-medium leading-relaxed text-slate-800 dark:text-slate-100">
             &ldquo;{quote.text}&rdquo;
           </p>
+          {quote.author && (
+            <p className="mt-2 text-center text-[12px] text-slate-400">
+              — {quote.author}
+            </p>
+          )}
         </div>
       </div>
 
@@ -64,4 +97,20 @@ export function Welcome({ userName }: Props) {
       </p>
     </div>
   )
+}
+
+function categoryLabel(category: string): string {
+  if (category === 'motivasi' || category === 'keberanian') return 'Semangat untukmu'
+  if (category === 'tenang') return 'Untukmu hari ini'
+  return 'Kata mutiara'
+}
+
+// Detect motivation/calm keywords in an API quote (English) to pick a label
+function authorAwareLabel(text: string): string {
+  const t = text.toLowerCase()
+  const motivate = ['courage', 'begin', 'start', 'dream', 'goal', 'success', 'strength', 'forward', 'rise', 'fight', 'believe', 'possible']
+  const calm = ['peace', 'breathe', 'calm', 'rest', 'still', 'quiet', 'silence', 'patience']
+  if (motivate.some((k) => t.includes(k))) return 'Semangat untukmu'
+  if (calm.some((k) => t.includes(k))) return 'Untukmu hari ini'
+  return 'Kata mutiara'
 }
