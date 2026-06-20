@@ -371,26 +371,26 @@ export default function ChatApp() {
       {/* Main */}
       <main className="relative flex min-w-0 flex-1 flex-col">
         {/* Floating glass top bar */}
-        <header className="safe-top glass-bar sticky top-0 z-20 m-2 flex items-center gap-2 rounded-full px-2 py-2 shadow-md sm:m-3 sm:rounded-2xl">
+        <header className="safe-top glass-bar sticky top-0 z-20 mx-2 mt-2 flex items-center gap-1.5 rounded-2xl px-2.5 py-2.5 shadow-md sm:mx-3 sm:mt-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10 sm:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:hidden"
             aria-label="Buka obrolan"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-[18px] w-[18px]" />
           </button>
           <div className="min-w-0 flex-1 px-1">
-            <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-800 dark:text-slate-100">
+            <h1 className="truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white">
               {activeConv?.title || 'Epong AI'}
             </h1>
           </div>
           <IncognitoToggle />
           <button
             onClick={handleNew}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             aria-label="Obrolan baru"
           >
-            <SquarePen className="h-5 w-5" />
+            <SquarePen className="h-[18px] w-[18px]" />
           </button>
         </header>
 

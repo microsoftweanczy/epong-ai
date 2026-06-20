@@ -67,7 +67,7 @@ export function Sidebar({
           <div className="flex items-center justify-between px-4 pb-2 pt-4">
             <div className="flex items-center gap-2.5">
               <Logo size={34} />
-              <span className="text-[17px] font-semibold tracking-tight text-slate-800">
+              <span className="text-[18px] font-semibold tracking-[-0.02em] text-slate-800 dark:text-slate-100">
                 Epong AI
               </span>
             </div>

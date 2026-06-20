@@ -39,9 +39,9 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
   }
 
   return (
-    <div className="safe-bottom px-3 pb-3 pt-2 sm:px-6">
-      <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
-        <div className="glass flex flex-1 items-end rounded-[28px] px-5 py-3 shadow-lg">
+    <div className="safe-bottom mx-2 mb-2 mt-1 sm:mx-3 sm:mb-3">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
+        <div className="glass flex min-h-[48px] flex-1 items-center rounded-[24px] px-4 py-2 shadow-lg">
           <textarea
             ref={taRef}
             value={value}
@@ -56,7 +56,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
             placeholder="Tulis pesan untuk Epong AI…"
             enterKeyHint="send"
             disabled={disabled}
-            className="max-h-40 min-h-[28px] flex-1 resize-none bg-transparent py-1 text-[16px] leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 disabled:opacity-50 dark:text-slate-100 dark:placeholder:text-slate-400"
+            className="max-h-36 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[16px] leading-[1.5] tracking-[-0.01em] text-slate-900 outline-none placeholder:text-slate-500 disabled:opacity-50 dark:text-slate-100 dark:placeholder:text-slate-400"
           />
         </div>
         {busy ? (
