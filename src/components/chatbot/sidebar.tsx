@@ -10,7 +10,6 @@ interface Props {
   conversations: Conversation[]
   activeId: string | null
   open: boolean
-  backend: 'supabase' | 'local'
   userName?: string | null
   onClose: () => void
   onSelect: (id: string) => void
@@ -25,7 +24,6 @@ export function Sidebar({
   conversations,
   activeId,
   open,
-  backend,
   userName,
   onClose,
   onSelect,
@@ -180,31 +178,23 @@ export function Sidebar({
           <div className="border-t border-white/40 px-3 py-2.5">
             <button
               onClick={onSettings}
-              className="tap-feedback mb-1 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              className="tap-feedback mb-1 flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
-              <Settings className="h-4 w-4" />
-              <span className="text-[14px] font-medium">Pengaturan</span>
+              <Settings className="h-5 w-5" />
+              <span className="text-[15px] font-medium">Pengaturan</span>
             </button>
             <button
               onClick={onSignOut}
-              className="tap-feedback mb-2 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              className="tap-feedback flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
-              <LogOut className="h-4 w-4" />
-              <span className="text-[14px] font-medium">Keluar</span>
+              <LogOut className="h-5 w-5" />
+              <span className="text-[15px] font-medium">Keluar</span>
               {userName && (
                 <span className="ml-auto truncate text-[12px] text-slate-400">
                   {userName}
                 </span>
               )}
             </button>
-            <p className="px-1 text-[11px] leading-relaxed text-slate-400">
-              Didukung oleh GLM ·{' '}
-              {backend === 'supabase' ? (
-                <span className="font-medium text-emerald-600">Supabase terhubung</span>
-              ) : (
-                <span className="text-amber-600">Penyimpanan lokal</span>
-              )}
-            </p>
           </div>
         </div>
       </aside>

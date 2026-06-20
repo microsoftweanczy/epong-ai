@@ -16,7 +16,6 @@ import {
   Heart,
   Zap,
 } from 'lucide-react'
-import { Logo } from './logo'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import {
   useSettings,
@@ -382,12 +381,6 @@ export function SettingsPanel({ open, onClose }: Props) {
               </button>
             )}
           </Section>
-
-          {/* About */}
-          <div className="mt-6 flex items-center justify-center gap-2 pb-4 text-[12px] text-slate-400">
-            <Logo size={20} />
-            <span>Epong AI · Didukung oleh GLM</span>
-          </div>
         </div>
       </div>
     </div>

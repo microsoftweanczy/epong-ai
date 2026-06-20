@@ -9,7 +9,7 @@ import { Welcome } from './welcome'
 import { SettingsPanel } from './settings-panel'
 import { LoginScreen } from './login-screen'
 import { IncognitoToggle } from './incognito-toggle'
-import { getStore, onStorageResolved } from '@/lib/storage'
+import { getStore } from '@/lib/storage'
 import { useThemeSync } from '@/lib/theme'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
@@ -26,7 +26,6 @@ export default function ChatApp() {
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [backend, setBackend] = useState<'supabase' | 'local'>('local')
 
   // ---- auth ----
   const {
@@ -53,22 +52,6 @@ export default function ChatApp() {
 
   // store is user-scoped — recreate when userId changes
   const store = userId ? getStore(userId) : null
-
-  // detect which storage backend is actually in use (Supabase vs local fallback)
-  useEffect(() => {
-    if (!userId) return
-    onStorageResolved(userId, (b, reason) => {
-      setBackend(b)
-      if (b === 'local' && reason === 'supabase-unavailable') {
-        toast.warning(
-          'Tabel Supabase belum ditemukan — menyimpan secara lokal untuk sekarang. Jalankan skema SQL di dashboard Supabase Anda untuk mengaktifkan sinkronisasi cloud.',
-          { duration: 9000 }
-        )
-      } else if (b === 'supabase') {
-        toast.success('Terhubung ke Supabase ✓', { duration: 3000 })
-      }
-    })
-  }, [userId])
 
   // ---- load conversation list ----
   const refreshConvos = useCallback(async () => {
@@ -372,7 +355,6 @@ export default function ChatApp() {
         conversations={conversations}
         activeId={activeId}
         open={sidebarOpen}
-        backend={backend}
         userName={user.name}
         onClose={() => setSidebarOpen(false)}
         onSelect={handleSelect}
