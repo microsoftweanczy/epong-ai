@@ -8,6 +8,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
  * Required env vars (see .env.example):
  *   NEXT_PUBLIC_SUPABASE_URL
  *   NEXT_PUBLIC_SUPABASE_ANON_KEY
+ *
+ * Auth is enabled with session persistence so OAuth (Google/Apple) works
+ * across page reloads and redirect callbacks.
  */
 export const supabase: SupabaseClient | null = (() => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -15,7 +18,11 @@ export const supabase: SupabaseClient | null = (() => {
   if (!url || !anonKey) return null
   try {
     return createClient(url, anonKey, {
-      auth: { persistSession: false },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true, // handles OAuth redirect callback
+      },
     })
   } catch {
     return null

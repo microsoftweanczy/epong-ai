@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
 import { formatListTime } from '@/lib/format'
 import { Logo } from './logo'
@@ -11,12 +11,14 @@ interface Props {
   activeId: string | null
   open: boolean
   backend: 'supabase' | 'local'
+  userName?: string | null
   onClose: () => void
   onSelect: (id: string) => void
   onNew: () => void
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
   onSettings: () => void
+  onSignOut: () => void
 }
 
 export function Sidebar({
@@ -24,12 +26,14 @@ export function Sidebar({
   activeId,
   open,
   backend,
+  userName,
   onClose,
   onSelect,
   onNew,
   onDelete,
   onRename,
   onSettings,
+  onSignOut,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -172,10 +176,22 @@ export function Sidebar({
           <div className="border-t border-white/40 px-3 py-2.5">
             <button
               onClick={onSettings}
-              className="tap-feedback mb-1.5 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              className="tap-feedback mb-1 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
               <Settings className="h-4 w-4" />
               <span className="text-[14px] font-medium">Pengaturan</span>
+            </button>
+            <button
+              onClick={onSignOut}
+              className="tap-feedback mb-2 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="text-[14px] font-medium">Keluar</span>
+              {userName && (
+                <span className="ml-auto truncate text-[12px] text-slate-400">
+                  {userName}
+                </span>
+              )}
             </button>
             <p className="px-1 text-[11px] leading-relaxed text-slate-400">
               Didukung oleh GLM ·{' '}

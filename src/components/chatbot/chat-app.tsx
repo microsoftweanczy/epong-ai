@@ -7,9 +7,11 @@ import { MessageList } from './message-list'
 import { Composer } from './composer'
 import { Welcome } from './welcome'
 import { SettingsPanel } from './settings-panel'
+import { LoginScreen } from './login-screen'
 import { getStore, onStorageResolved } from '@/lib/storage'
 import { useThemeSync } from '@/lib/theme'
 import { useSettings } from '@/lib/settings'
+import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
 import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
 
@@ -24,20 +26,30 @@ export default function ChatApp() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [backend, setBackend] = useState<'supabase' | 'local'>('local')
 
-  // keep theme in sync + load user memory on mount
+  // ---- auth ----
+  const { user, loading: authLoading, signInWithGoogle, signInWithApple, signOut } = useAuth()
+  const userId = user?.id || null
+
+  // keep theme in sync
   useThemeSync()
-  const { prefs, memory, behaviorProfile, loadMemory } = useSettings()
+  const { prefs, memory, behaviorProfile, loadMemory, setUserId } = useSettings()
+
+  // sync settings userId + load memory when user changes
   useEffect(() => {
-    loadMemory()
-  }, [loadMemory])
+    setUserId(userId)
+    if (userId) loadMemory()
+  }, [userId, setUserId, loadMemory])
 
   const abortRef = useRef<AbortController | null>(null)
   const skipNextLoad = useRef(false)
-  const store = getStore()
+
+  // store is user-scoped — recreate when userId changes
+  const store = userId ? getStore(userId) : null
 
   // detect which storage backend is actually in use (Supabase vs local fallback)
   useEffect(() => {
-    onStorageResolved((b, reason) => {
+    if (!userId) return
+    onStorageResolved(userId, (b, reason) => {
       setBackend(b)
       if (b === 'local' && reason === 'supabase-unavailable') {
         toast.warning(
@@ -48,10 +60,14 @@ export default function ChatApp() {
         toast.success('Terhubung ke Supabase ✓', { duration: 3000 })
       }
     })
-  }, [])
+  }, [userId])
 
   // ---- load conversation list ----
   const refreshConvos = useCallback(async () => {
+    if (!store) {
+      setLoadingConvos(false)
+      return
+    }
     try {
       const list = await store.listConversations()
       setConversations(list)
@@ -63,12 +79,13 @@ export default function ChatApp() {
   }, [store])
 
   useEffect(() => {
-    refreshConvos()
-  }, [refreshConvos])
+    if (userId) refreshConvos()
+    else setLoadingConvos(false)
+  }, [refreshConvos, userId])
 
   // ---- load messages when active changes ----
   useEffect(() => {
-    if (!activeId) {
+    if (!activeId || !store) {
       setMessages([])
       return
     }
@@ -96,8 +113,9 @@ export default function ChatApp() {
 
   // ---- new conversation ----
   const handleNew = useCallback(async () => {
+    if (!store) return
     try {
-      const conv = await store.createConversation('New Chat')
+      const conv = await store.createConversation('Obrolan Baru')
       setConversations((prev) => [conv, ...prev])
       skipNextLoad.current = true
       setActiveId(conv.id)
@@ -120,6 +138,7 @@ export default function ChatApp() {
   // ---- delete ----
   const handleDelete = useCallback(
     async (id: string) => {
+      if (!store) return
       try {
         await store.deleteConversation(id)
         setConversations((prev) => prev.filter((c) => c.id !== id))
@@ -137,6 +156,7 @@ export default function ChatApp() {
   // ---- rename ----
   const handleRename = useCallback(
     async (id: string, title: string) => {
+      if (!store) return
       try {
         await store.renameConversation(id, title)
         setConversations((prev) =>
@@ -152,6 +172,7 @@ export default function ChatApp() {
   // ---- send a message (with streaming) ----
   const handleSend = useCallback(
     async (text: string) => {
+      if (!store) return
       // ensure a conversation — title it from the first user message
       let convId = activeId
       if (!convId) {
@@ -295,6 +316,28 @@ export default function ChatApp() {
   const activeConv = conversations.find((c) => c.id === activeId) || null
   const showWelcome = !activeId && !loadingConvos && messages.length === 0
 
+  // ---- auth gate: show login screen if not authenticated (and not loading) ----
+  if (!authLoading && !user) {
+    return (
+      <LoginScreen
+        onGoogle={signInWithGoogle}
+        onApple={signInWithApple}
+        loading={authLoading}
+      />
+    )
+  }
+
+  if (authLoading || !user) {
+    return (
+      <div className="mesh-bg flex h-[100dvh] items-center justify-center">
+        <div className="flex items-center gap-2 text-slate-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-[#0A84FF]" />
+          <span className="text-sm">Memuat…</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mesh-bg relative flex h-[100dvh] w-full overflow-hidden">
       <Sidebar
@@ -302,6 +345,7 @@ export default function ChatApp() {
         activeId={activeId}
         open={sidebarOpen}
         backend={backend}
+        userName={user.name}
         onClose={() => setSidebarOpen(false)}
         onSelect={handleSelect}
         onNew={handleNew}
@@ -311,6 +355,7 @@ export default function ChatApp() {
           setSidebarOpen(false)
           setSettingsOpen(true)
         }}
+        onSignOut={signOut}
       />
 
       {/* Main */}
@@ -319,13 +364,13 @@ export default function ChatApp() {
         <header className="safe-top glass-bar sticky top-0 z-20 m-2 flex items-center gap-2 rounded-full px-2 py-2 shadow-md sm:m-3 sm:rounded-2xl">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 sm:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:hover:bg-white/10 sm:hidden"
             aria-label="Buka obrolan"
           >
             <Menu className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 px-1">
-            <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-800">
+            <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-800 dark:text-slate-100">
               {activeConv?.title || 'Epong AI'}
             </h1>
           </div>
@@ -341,7 +386,7 @@ export default function ChatApp() {
         {/* Body */}
         {showWelcome ? (
           <div className="flex flex-1 flex-col">
-            <Welcome onPick={(p) => handleSend(p)} />
+            <Welcome onPick={(p) => handleSend(p)} userName={user.name} />
           </div>
         ) : (
           <>

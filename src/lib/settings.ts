@@ -47,6 +47,9 @@ interface SettingsState {
   setPrefs: (p: Partial<Preferences>) => void
   resetPrefs: () => void
 
+  userId: string | null
+  setUserId: (id: string | null) => void
+
   memory: MemoryNote[]
   memoryLoaded: boolean
   loadMemory: () => Promise<void>
@@ -67,17 +70,21 @@ function uuid() {
 
 const LS_MEMORY_KEY = 'epong-memory-v1'
 
-function loadLocalMemory(): MemoryNote[] {
+function localMemoryKey(userId: string) {
+  return `epong-memory-${userId}`
+}
+
+function loadLocalMemory(userId: string): MemoryNote[] {
   if (typeof window === 'undefined') return []
   try {
-    return JSON.parse(localStorage.getItem(LS_MEMORY_KEY) || '[]')
+    return JSON.parse(localStorage.getItem(localMemoryKey(userId)) || '[]')
   } catch {
     return []
   }
 }
-function saveLocalMemory(notes: MemoryNote[]) {
+function saveLocalMemory(userId: string, notes: MemoryNote[]) {
   if (typeof window === 'undefined') return
-  localStorage.setItem(LS_MEMORY_KEY, JSON.stringify(notes))
+  localStorage.setItem(localMemoryKey(userId), JSON.stringify(notes))
 }
 
 export const useSettings = create<SettingsState>()(
@@ -87,14 +94,25 @@ export const useSettings = create<SettingsState>()(
       setPrefs: (p) => set({ prefs: { ...get().prefs, ...p } }),
       resetPrefs: () => set({ prefs: DEFAULT_PREFS }),
 
+      userId: null,
+      setUserId: (id) => {
+        set({ userId: id, memory: [], memoryLoaded: false })
+      },
+
       memory: [],
       memoryLoaded: false,
       loadMemory: async () => {
+        const uid = get().userId
+        if (!uid) {
+          set({ memory: [], memoryLoaded: true })
+          return
+        }
         if (supabase) {
           try {
             const { data, error } = await supabase
               .from('user_memory')
               .select('id, content, category, created_at')
+              .eq('user_id', uid)
               .order('created_at', { ascending: false })
             if (error) throw error
             const notes: MemoryNote[] = (data || []).map((r: any) => ({
@@ -109,9 +127,11 @@ export const useSettings = create<SettingsState>()(
             /* fall back to local */
           }
         }
-        set({ memory: loadLocalMemory(), memoryLoaded: true })
+        set({ memory: loadLocalMemory(uid), memoryLoaded: true })
       },
       addMemory: async (content, category = 'fakta') => {
+        const uid = get().userId
+        if (!uid) return
         const note: MemoryNote = {
           id: uuid(),
           content: content.trim(),
@@ -123,6 +143,7 @@ export const useSettings = create<SettingsState>()(
           try {
             const { error } = await supabase.from('user_memory').insert({
               id: note.id,
+              user_id: uid,
               content: note.content,
               category: note.category,
               created_at: note.createdAt,
@@ -132,12 +153,14 @@ export const useSettings = create<SettingsState>()(
             // fall back to local
           }
         }
-        const local = supabase ? get().memory : loadLocalMemory()
+        const local = supabase ? get().memory : loadLocalMemory(uid)
         const updated = [note, ...local]
-        if (!supabase) saveLocalMemory(updated)
+        if (!supabase) saveLocalMemory(uid, updated)
         set({ memory: updated })
       },
       updateMemory: async (id, content) => {
+        const uid = get().userId
+        if (!uid) return
         const trimmed = content.trim()
         if (supabase) {
           try {
@@ -145,6 +168,7 @@ export const useSettings = create<SettingsState>()(
               .from('user_memory')
               .update({ content: trimmed })
               .eq('id', id)
+              .eq('user_id', uid)
             if (error) throw error
           } catch {
             /* ignore */
@@ -155,18 +179,24 @@ export const useSettings = create<SettingsState>()(
             m.id === id ? { ...m, content: trimmed } : m
           ),
         })
-        if (!supabase) saveLocalMemory(get().memory)
+        if (!supabase) saveLocalMemory(uid, get().memory)
       },
       deleteMemory: async (id) => {
+        const uid = get().userId
+        if (!uid) return
         if (supabase) {
           try {
-            await supabase.from('user_memory').delete().eq('id', id)
+            await supabase
+              .from('user_memory')
+              .delete()
+              .eq('id', id)
+              .eq('user_id', uid)
           } catch {
             /* ignore */
           }
         }
         set({ memory: get().memory.filter((m) => m.id !== id) })
-        if (!supabase) saveLocalMemory(get().memory)
+        if (!supabase) saveLocalMemory(uid, get().memory)
       },
 
       behaviorProfile: '',
@@ -177,7 +207,7 @@ export const useSettings = create<SettingsState>()(
       partialize: (s) => ({
         prefs: s.prefs,
         behaviorProfile: s.behaviorProfile,
-      }), // memory is loaded from Supabase/local separately
+      }),
     }
   )
 )
