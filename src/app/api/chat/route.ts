@@ -11,8 +11,8 @@ export const maxDuration = 60
  * Streaming chat completion endpoint with smart multi-provider switching.
  *
  * Providers (tried in order based on availability + user preference):
- *  1. GLM (Zhipu AI)  — when GLM_API_KEY is set
- *  2. OpenRouter      — when OPENROUTER_API_KEY is set (access many models)
+ *  1. OpenRouter   — when OPENROUTER_API_KEY is set (default primary: GPT-OSS 120B)
+ *  2. GLM (Zhipu AI) — when GLM_API_KEY is set (fallback)
  *  3. z-ai-web-dev-sdk — built-in preview fallback (always available here)
  *
  * If a provider fails, it automatically falls back to the next — so the bot
@@ -71,9 +71,9 @@ export async function POST(req: NextRequest) {
     if (hasOpenRouter) providers.push('openrouter')
     if (hasGLM) providers.push('glm')
   } else {
-    // auto: try GLM first (familiar), then OpenRouter
-    if (hasGLM) providers.push('glm')
+    // auto: try OpenRouter first (GPT-OSS / Llama / Qwen), then GLM as fallback
     if (hasOpenRouter) providers.push('openrouter')
+    if (hasGLM) providers.push('glm')
   }
 
   const encoder = new TextEncoder()
