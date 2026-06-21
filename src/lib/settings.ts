@@ -11,7 +11,7 @@ import { supabase } from './supabase'
 export type ToneStyle = 'santai' | 'profesional' | 'akrab' | 'formal'
 export type Verbosity = 'ringkas' | 'seimbang' | 'rinci'
 export type HumorLevel = 'nonaktif' | 'sedikit' | 'sering'
-export type AIProvider = 'auto' | 'glm' | 'openrouter'
+export type AIProvider = 'auto' | 'glm' | 'openrouter' | 'groq'
 
 export interface Preferences {
   tone: ToneStyle

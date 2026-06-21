@@ -4,7 +4,8 @@ import { Cpu } from 'lucide-react'
 import { useSettings, type AIProvider } from '@/lib/settings'
 
 const PROVIDERS: { value: AIProvider; label: string; short: string }[] = [
-  { value: 'auto', label: 'Auto', short: 'Auto' },
+  { value: 'auto', label: 'Auto (switch otomatis)', short: 'Auto' },
+  { value: 'groq', label: 'Groq (Llama 3.3 70B, super cepat)', short: 'Groq' },
   { value: 'openrouter', label: 'OpenRouter (GPT-OSS)', short: 'GPT' },
   { value: 'glm', label: 'GLM 4.5 Flash', short: 'GLM' },
 ]
