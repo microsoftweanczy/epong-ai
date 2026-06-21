@@ -169,15 +169,10 @@
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
-/* Animated mesh-gradient backdrop (the canvas the glass floats over) */
+/* Flat professional background — Copilot style, easy to read */
 .mesh-bg {
-  background-color: #eef2ff;
-  background-image:
-    radial-gradient(at 18% 22%, rgba(99, 102, 241, 0.45) 0px, transparent 55%),
-    radial-gradient(at 82% 18%, rgba(236, 72, 153, 0.38) 0px, transparent 55%),
-    radial-gradient(at 75% 78%, rgba(14, 165, 233, 0.42) 0px, transparent 55%),
-    radial-gradient(at 22% 82%, rgba(168, 85, 247, 0.4) 0px, transparent 55%),
-    radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.25) 0px, transparent 60%);
+  background-color: #f3f4f6;
+  background-image: none;
 }
 
 /* iOS-style refined scrollbar */
@@ -207,8 +202,8 @@
 
 /* Markdown content inside assistant bubbles */
 .md-body {
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
   word-break: break-word;
 }
 .md-body p {
@@ -290,13 +285,8 @@
    ──────────────────────────────────────────────────────────── */
 
 .dark .mesh-bg {
-  background-color: #0b1120;
-  background-image:
-    radial-gradient(at 18% 22%, rgba(99, 102, 241, 0.35) 0px, transparent 55%),
-    radial-gradient(at 82% 18%, rgba(168, 85, 247, 0.3) 0px, transparent 55%),
-    radial-gradient(at 75% 78%, rgba(14, 165, 233, 0.3) 0px, transparent 55%),
-    radial-gradient(at 22% 82%, rgba(79, 70, 229, 0.3) 0px, transparent 55%),
-    radial-gradient(at 50% 50%, rgba(56, 189, 248, 0.15) 0px, transparent 60%);
+  background-color: #1a1a2e;
+  background-image: none;
 }
 
 .dark .glass {
