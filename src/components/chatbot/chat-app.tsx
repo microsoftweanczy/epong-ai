@@ -270,11 +270,17 @@ export default function ChatApp() {
                 break
               }
               if (json.searchPerformed) {
-                // Show "searching web..." in the assistant bubble before content arrives
+                // Show "searching web..." with source count
+                const sources = json.sources || 0
+                const pages = json.pagesRead || 0
+                const searchMsg =
+                  pages > 0
+                    ? `🔍 Mencari di ${sources} sumber, membaca ${pages} halaman...`
+                    : `🔍 Mencari informasi terbaru di internet...`
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
-                      ? { ...m, content: '🔍 Mencari informasi terbaru di internet...' }
+                      ? { ...m, content: searchMsg }
                       : m
                   )
                 )
