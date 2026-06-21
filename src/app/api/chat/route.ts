@@ -97,6 +97,13 @@ async function enhancedWebSearch(userQuery: string): Promise<{
       }
     }
 
+    // Fallback: if z-ai SDK returned nothing, try DuckDuckGo HTML search
+    if (allResults.length === 0) {
+      console.log('[chat] z-ai search empty, trying DuckDuckGo fallback')
+      const ddgResults = await duckDuckGoSearch(userQuery)
+      allResults.push(...ddgResults)
+    }
+
     if (allResults.length === 0) {
       return { context: '', sourceCount: 0, pagesRead: 0 }
     }
@@ -169,6 +176,46 @@ async function enhancedWebSearch(userQuery: string): Promise<{
   }
 }
 
+/** DuckDuckGo HTML search fallback (no API key needed) */
+async function duckDuckGoSearch(query: string): Promise<SearchResult[]> {
+  try {
+    const res = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(8000),
+      }
+    )
+    if (!res.ok) return []
+    const html = await res.text()
+    const results: SearchResult[] = []
+    // Parse DuckDuckGo HTML results
+    const resultRegex = /<a rel="nofollow" class="result__a" href="([^"]+)">(.*?)<\/a>[\s\S]*?<a class="result__snippet"[^>]*>(.*?)<\/a>/g
+    let match
+    while ((match = resultRegex.exec(html)) !== null && results.length < 8) {
+      const url = match[1] || ''
+      const title = match[2].replace(/<[^>]*>/g, '').trim()
+      const snippet = match[3].replace(/<[^>]*>/g, '').trim()
+      if (url && title) {
+        // DuckDuckGo wraps URLs in a redirect — extract actual URL
+        const actualUrl = url.includes('uddg=') 
+          ? decodeURIComponent(url.split('uddg=')[1]?.split('&')[0] || url) 
+          : url
+        results.push({
+          title,
+          snippet: snippet.slice(0, 300),
+          url: actualUrl,
+          source: new URL(actualUrl).hostname,
+        })
+      }
+    }
+    return results
+  } catch (e: any) {
+    console.error('[chat] DuckDuckGo search failed:', e?.message)
+    return []
+  }
+}
+
 /** Strip HTML tags and return clean text */
 function extractPlainText(html: string): string {
   return html
@@ -205,16 +252,32 @@ export async function POST(req: NextRequest) {
   const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
   let searchContext = ''
   let searchInfo = { sourceCount: 0, pagesRead: 0 }
+  let searchNeeded = false
+  let searchFailed = false
 
   if (lastUserMsg && needsWebSearch(lastUserMsg.content)) {
+    searchNeeded = true
     const result = await enhancedWebSearch(lastUserMsg.content)
     searchContext = result.context
     searchInfo = { sourceCount: result.sourceCount, pagesRead: result.pagesRead }
+    if (!searchContext) {
+      searchFailed = true
+    }
   }
 
-  const fullSystem = searchContext
-    ? `${systemInstruction}\n\n${searchContext}`
-    : systemInstruction
+  // Build system prompt based on search outcome
+  let fullSystem: string
+  if (searchContext) {
+    // Search succeeded — inject results
+    fullSystem = `${systemInstruction}\n\n${searchContext}`
+  } else if (searchFailed) {
+    // Search was needed but FAILED — tell AI NOT to use old training data
+    fullSystem = `${systemInstruction}
+
+CRITICAL: The user is asking about current/recent events, but the web search failed. You MUST NOT use your training data for current events, news, or real-time information — your training data is outdated. Instead, tell the user honestly: "Maaf, saya tidak bisa mengakses informasi real-time saat ini. Pencarian internet sedang bermasalah. Silakan coba lagi sebentar." Do NOT make up dates, events, or news from your training data.`
+  } else {
+    fullSystem = systemInstruction
+  }
 
   const messages: ApiMessage[] = [
     { role: 'system', content: fullSystem },
