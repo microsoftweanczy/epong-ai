@@ -8,17 +8,17 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Streaming chat endpoint with Smart Web Search.
+ * Streaming chat with real-time data via Google News RSS + Wikipedia + DDG.
+ * All free, no API keys, extremely stable.
  *
- * Search providers (in order of reliability):
- *  1. DuckDuckGo Instant Answer API (api.duckduckgo.com) — JSON, no key, stable
- *  2. Wikipedia REST API — for factual/educational info, extremely stable
- *  3. z-ai SDK web_search — bonus when available
- *
- * Anti-hallucination: if search fails, AI is told NOT to use old training data.
+ * Search chain (all run in parallel):
+ *  1. Google News RSS — real-time news, any language, ~100ms response
+ *  2. Wikipedia REST API — factual/educational data, 99.99% uptime
+ *  3. DuckDuckGo Instant Answer API — quick answers, definitions
+ *  4. z-ai SDK web_search — bonus broader coverage
  */
 
-// ── Smart detection patterns ──
+// ── Smart detection ──
 const REALTIME_PATTERNS: RegExp[] = [
   /terbaru|terkini|hari ini|sekarang|saat ini|kini|baru saja|kemarin/i,
   /latest|today|current|recent|right now|yesterday/i,
@@ -43,140 +43,36 @@ interface SearchResult {
   source: string
 }
 
-/**
- * Multi-provider search: runs DDG Instant Answer + Wikipedia in parallel,
- * then z-ai SDK as bonus. Returns merged, deduplicated results.
- */
-async function smartWebSearch(query: string): Promise<{
-  context: string
-  sourceCount: number
-}> {
-  // Run all 3 providers in parallel (fast — all respond in ~1-2s)
-  const [ddgResults, wikiResults, zaiResults] = await Promise.allSettled([
-    searchDuckDuckGoAPI(query),
-    searchWikipedia(query),
-    searchViaZAI(query),
-  ])
-
-  const allResults: SearchResult[] = []
-  const seenUrls = new Set<string>()
-
-  // Add DDG results (most relevant for real-time/news)
-  if (ddgResults.status === 'fulfilled') {
-    for (const r of ddgResults.value) {
-      if (!seenUrls.has(r.url)) {
-        seenUrls.add(r.url)
-        allResults.push(r)
-      }
-    }
-  }
-
-  // Add Wikipedia results (most stable for factual info)
-  if (wikiResults.status === 'fulfilled') {
-    for (const r of wikiResults.value) {
-      if (!seenUrls.has(r.url)) {
-        seenUrls.add(r.url)
-        allResults.push(r)
-      }
-    }
-  }
-
-  // Add z-ai results (bonus — may have broader coverage)
-  if (zaiResults.status === 'fulfilled') {
-    for (const r of zaiResults.value) {
-      if (!seenUrls.has(r.url)) {
-        seenUrls.add(r.url)
-        allResults.push(r)
-      }
-    }
-  }
-
-  if (allResults.length === 0) {
-    return { context: '', sourceCount: 0 }
-  }
-
-  // Build context — top 5 results
-  const context = allResults
-    .slice(0, 5)
-    .map(
-      (r, i) =>
-        `${i + 1}. ${r.title}\n   ${r.snippet}\n   Sumber: ${r.source} (${r.url})`
-    )
-    .join('\n\n')
-
-  return { context, sourceCount: allResults.length }
-}
-
-// ── Provider 1: DuckDuckGo Instant Answer API (JSON, stable, no key) ──
-// Official DDG API — returns JSON, no HTML scraping needed
-async function searchDuckDuckGoAPI(query: string): Promise<SearchResult[]> {
+// ── Provider 1: Google News RSS (real-time news, fastest) ──
+async function searchGoogleNews(query: string): Promise<SearchResult[]> {
   try {
     const res = await fetch(
-      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-      {
-        headers: { 'User-Agent': 'EpongAI/1.0' },
-        signal: AbortSignal.timeout(5000),
-      }
+      `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=id&gl=ID&ceid=ID:id`,
+      { signal: AbortSignal.timeout(5000) }
     )
     if (!res.ok) return []
-    const data = await res.json()
+    const xml = await res.text()
 
     const results: SearchResult[] = []
+    // Parse RSS XML with regex (lightweight, no XML parser needed)
+    const items = xml.match(/<item>[\s\S]*?<\/item>/g) || []
 
-    // Abstract (main answer)
-    if (data.AbstractText) {
-      results.push({
-        title: data.Heading || query,
-        snippet: data.AbstractText,
-        url: data.AbstractURL || '',
-        source: 'DuckDuckGo',
-      })
-    }
+    for (const item of items.slice(0, 5)) {
+      const titleMatch = item.match(/<title>(.*?)<\/title>/)
+      const linkMatch = item.match(/<link>(.*?)<\/link>/)
+      const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)
+      const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/)
 
-    // Answer (direct answer)
-    if (data.Answer) {
-      results.push({
-        title: `Answer: ${query}`,
-        snippet: typeof data.Answer === 'string' ? data.Answer : JSON.stringify(data.Answer),
-        url: '',
-        source: 'DuckDuckGo',
-      })
-    }
+      const title = titleMatch ? titleMatch[1].trim() : ''
+      // Clean HTML from description
+      const desc = descMatch
+        ? descMatch[1].replace(/<[^>]*>/g, '').trim().slice(0, 250)
+        : ''
+      const url = linkMatch ? linkMatch[1].trim() : ''
+      const source = sourceMatch ? sourceMatch[1].trim() : 'Google News'
 
-    // Definition
-    if (data.Definition) {
-      results.push({
-        title: `Definition: ${query}`,
-        snippet: data.Definition,
-        url: data.DefinitionURL || '',
-        source: 'DuckDuckGo',
-      })
-    }
-
-    // Related topics
-    if (Array.isArray(data.RelatedTopics)) {
-      for (const topic of data.RelatedTopics.slice(0, 3)) {
-        if (topic.Text && topic.FirstURL) {
-          results.push({
-            title: topic.Text.split(' - ')[0] || query,
-            snippet: topic.Text,
-            url: topic.FirstURL,
-            source: 'DuckDuckGo',
-          })
-        }
-        // Nested topics
-        if (topic.Topics && Array.isArray(topic.Topics)) {
-          for (const subTopic of topic.Topics.slice(0, 1)) {
-            if (subTopic.Text && subTopic.FirstURL) {
-              results.push({
-                title: subTopic.Text.split(' - ')[0] || query,
-                snippet: subTopic.Text,
-                url: subTopic.FirstURL,
-                source: 'DuckDuckGo',
-              })
-            }
-          }
-        }
+      if (title) {
+        results.push({ title, snippet: desc || title, url, source })
       }
     }
 
@@ -186,29 +82,23 @@ async function searchDuckDuckGoAPI(query: string): Promise<SearchResult[]> {
   }
 }
 
-// ── Provider 2: Wikipedia REST API (extremely stable, fast, no key) ──
-// Wikipedia OpenSearch + summary — great for factual/educational queries
+// ── Provider 2: Wikipedia REST API (factual, extremely stable) ──
 async function searchWikipedia(query: string): Promise<SearchResult[]> {
   try {
-    // Step 1: Search Wikipedia for article titles
     const searchRes = await fetch(
       `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3&format=json&origin=*`,
-      {
-        signal: AbortSignal.timeout(5000),
-      }
+      { signal: AbortSignal.timeout(5000) }
     )
     if (!searchRes.ok) return []
     const searchData = await searchRes.json()
     const searchResults = searchData?.query?.search || []
     if (searchResults.length === 0) return []
 
-    // Step 2: Get summary for top article
+    // Get summary for top article
     const topTitle = searchResults[0].title
     const summaryRes = await fetch(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topTitle)}`,
-      {
-        signal: AbortSignal.timeout(5000),
-      }
+      { signal: AbortSignal.timeout(5000) }
     )
     if (!summaryRes.ok) return []
 
@@ -219,7 +109,7 @@ async function searchWikipedia(query: string): Promise<SearchResult[]> {
       results.push({
         title: summary.title || topTitle,
         snippet: summary.extract.slice(0, 300),
-        url: summary.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topTitle)}`,
+        url: summary.content_urls?.desktop?.page || '',
         source: 'Wikipedia',
       })
     }
@@ -243,26 +133,116 @@ async function searchWikipedia(query: string): Promise<SearchResult[]> {
   }
 }
 
-// ── Provider 3: z-ai SDK web_search (bonus, may not work on Vercel) ──
+// ── Provider 3: DuckDuckGo Instant Answer API ──
+async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
+  try {
+    const res = await fetch(
+      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    const results: SearchResult[] = []
+
+    if (data.AbstractText) {
+      results.push({
+        title: data.Heading || query,
+        snippet: data.AbstractText,
+        url: data.AbstractURL || '',
+        source: 'DuckDuckGo',
+      })
+    }
+    if (data.Answer) {
+      results.push({
+        title: `Answer: ${query}`,
+        snippet: typeof data.Answer === 'string' ? data.Answer : String(data.Answer),
+        url: '',
+        source: 'DuckDuckGo',
+      })
+    }
+    if (Array.isArray(data.RelatedTopics)) {
+      for (const topic of data.RelatedTopics.slice(0, 2)) {
+        if (topic.Text && topic.FirstURL) {
+          results.push({
+            title: topic.Text.split(' - ')[0] || query,
+            snippet: topic.Text.slice(0, 200),
+            url: topic.FirstURL,
+            source: 'DuckDuckGo',
+          })
+        }
+      }
+    }
+    return results
+  } catch {
+    return []
+  }
+}
+
+// ── Provider 4: z-ai SDK web_search (bonus) ──
 async function searchViaZAI(query: string): Promise<SearchResult[]> {
   try {
     const ZAIModule = await import('z-ai-web-dev-sdk')
     const ZAI = ZAIModule.default
     const zai = await ZAI.create()
-    const results = await zai.functions.invoke('web_search', {
-      query,
-      num: 5,
-    })
+    const results = await zai.functions.invoke('web_search', { query, num: 5 })
     if (!Array.isArray(results)) return []
     return results.map((r: any) => ({
       title: r.name || '',
       snippet: r.snippet || '',
       url: r.url || '',
-      source: r.host_name || (r.url ? new URL(r.url).hostname : 'Web'),
+      source: r.host_name || 'Web',
     }))
   } catch {
     return []
   }
+}
+
+// ── Multi-provider parallel search ──
+async function smartWebSearch(query: string): Promise<{ context: string; sourceCount: number }> {
+  // Run ALL 4 providers in parallel for maximum speed + coverage
+  const [news, wiki, ddg, zai] = await Promise.allSettled([
+    searchGoogleNews(query),
+    searchWikipedia(query),
+    searchDuckDuckGo(query),
+    searchViaZAI(query),
+  ])
+
+  const allResults: SearchResult[] = []
+  const seenUrls = new Set<string>()
+
+  // Google News first (most relevant for real-time queries)
+  if (news.status === 'fulfilled') {
+    for (const r of news.value) {
+      if (!seenUrls.has(r.url)) { seenUrls.add(r.url); allResults.push(r) }
+    }
+  }
+  // Then Wikipedia (most stable for facts)
+  if (wiki.status === 'fulfilled') {
+    for (const r of wiki.value) {
+      if (!seenUrls.has(r.url)) { seenUrls.add(r.url); allResults.push(r) }
+    }
+  }
+  // Then DuckDuckGo (quick answers)
+  if (ddg.status === 'fulfilled') {
+    for (const r of ddg.value) {
+      if (!seenUrls.has(r.url)) { seenUrls.add(r.url); allResults.push(r) }
+    }
+  }
+  // Then z-ai (bonus)
+  if (zai.status === 'fulfilled') {
+    for (const r of zai.value) {
+      if (!seenUrls.has(r.url)) { seenUrls.add(r.url); allResults.push(r) }
+    }
+  }
+
+  if (allResults.length === 0) return { context: '', sourceCount: 0 }
+
+  const context = allResults
+    .slice(0, 6)
+    .map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   Sumber: ${r.source}`)
+    .join('\n\n')
+
+  return { context, sourceCount: allResults.length }
 }
 
 // ── Main handler ──
@@ -282,12 +262,7 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const systemInstruction = buildInstruction(
-    body.prefs,
-    body.behaviorProfile,
-    body.insights,
-    body.memory
-  )
+  const systemInstruction = buildInstruction(body.prefs, body.behaviorProfile, body.insights, body.memory)
 
   // Check if web search is needed
   const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
@@ -296,7 +271,6 @@ export async function POST(req: NextRequest) {
   let searchSourceCount = 0
 
   if (lastUserMsg && needsWebSearch(lastUserMsg.content)) {
-    // Run search with 8s timeout (parallel providers are fast)
     const searchResult = await Promise.race([
       smartWebSearch(lastUserMsg.content),
       new Promise<{ context: string; sourceCount: number }>((resolve) =>
@@ -308,19 +282,18 @@ export async function POST(req: NextRequest) {
     if (!searchContext) searchFailed = true
   }
 
-  // Build system prompt based on search outcome
   let fullSystem: string
   if (searchContext) {
     fullSystem = `${systemInstruction}
 
-REAL-TIME WEB SEARCH RESULTS (${searchSourceCount} sources found):
+REAL-TIME DATA (${searchSourceCount} sources):
 ${searchContext}
 
-IMPORTANT: Use the above real-time data to answer. Cite source names. Current date: ${new Date().toISOString().split('T')[0]}.`
+Use this real-time data. Cite source names. Current date: ${new Date().toISOString().split('T')[0]}.`
   } else if (searchFailed) {
     fullSystem = `${systemInstruction}
 
-CRITICAL: Web search was needed but all providers failed. Do NOT use training data for current events. Tell user: "Maaf, saya tidak bisa mengakses informasi real-time saat ini. Silakan coba lagi sebentar." Never present old data as current.`
+CRITICAL: Web search failed. Do NOT use training data for current events. Tell user: "Maaf, pencarian internet bermasalah. Coba lagi sebentar." Never present old data as current.`
   } else {
     fullSystem = systemInstruction
   }
@@ -336,19 +309,11 @@ CRITICAL: Web search was needed but all providers failed. Do NOT use training da
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
-      if (searchContext) {
-        send({ searchPerformed: true, sources: searchSourceCount })
-      } else if (searchFailed) {
-        send({ searchFailed: true })
-      }
+      if (searchContext) send({ searchPerformed: true, sources: searchSourceCount })
+      else if (searchFailed) send({ searchFailed: true })
 
-      const ok = await streamChat(messages, (delta) =>
-        send({ content: delta })
-      )
-
-      if (!ok) {
-        send({ content: '*(Maaf, AI sedang bermasalah. Coba lagi ya.)*' })
-      }
+      const ok = await streamChat(messages, (delta) => send({ content: delta }))
+      if (!ok) send({ content: '*(Maaf, AI bermasalah. Coba lagi ya.)*' })
 
       controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       controller.close()
@@ -365,8 +330,6 @@ CRITICAL: Web search was needed but all providers failed. Do NOT use training da
   })
 }
 
-// ── System instruction builder ──
-
 function buildInstruction(
   prefs?: Preferences | null,
   behaviorProfile?: string,
@@ -377,45 +340,42 @@ function buildInstruction(
   const parts: string[] = [
     'You are Epong AI, a helpful AI assistant built by Wensy Corp (Epong) — a handsome guy from Mbodong and Waemata, Labuan Bajo.',
     'Detect the language the user speaks and respond in that same language.',
-    'Always use correct spelling, grammar, and punctuation — never mirror the user\'s typos.',
+    'Always use correct spelling, grammar, and punctuation.',
   ]
 
   const toneMap: Record<string, string> = {
     santai: 'Style: casual and friendly. Use "kamu".',
-    akrab: 'Style: very warm, like a best friend. Use "kamu".',
-    profesional: 'Style: professional but approachable. Use "Anda".',
-    formal: 'Style: formal and respectful. Use "Anda".',
+    akrab: 'Style: very warm. Use "kamu".',
+    profesional: 'Style: professional. Use "Anda".',
+    formal: 'Style: formal. Use "Anda".',
   }
   if (p.tone && toneMap[p.tone]) parts.push(toneMap[p.tone])
 
   const verbMap: Record<string, string> = {
-    ringkas: 'Length: concise, max 2-3 sentences for simple questions.',
+    ringkas: 'Length: concise, max 2-3 sentences.',
     seimbang: 'Length: balanced, use bullet points for complex topics.',
-    rinci: 'Length: detailed, use headings and bullet points.',
+    rinci: 'Length: detailed, headings and bullet points.',
   }
   if (p.verbosity && verbMap[p.verbosity]) parts.push(verbMap[p.verbosity])
 
   const humorMap: Record<string, string> = {
     nonaktif: 'Humor: disabled.',
-    sedikit: 'Humor: occasional, never during serious topics.',
-    sering: 'Humor: playful and witty when appropriate.',
+    sedikit: 'Humor: occasional.',
+    sering: 'Humor: playful and witty.',
   }
   if (p.humor && humorMap[p.humor]) parts.push(humorMap[p.humor])
 
-  if (p.empathy) parts.push('Read the user\'s emotion and respond with empathy.')
-  if (p.critical) parts.push('Be critically honest — challenge bad ideas respectfully.')
+  if (p.empathy) parts.push('Respond with empathy.')
+  if (p.critical) parts.push('Be critically honest.')
 
-  if (behaviorProfile && behaviorProfile.trim()) {
-    parts.push(`USER BEHAVIOR PROFILE (adapt your style accordingly):\n${behaviorProfile.trim()}`)
+  if (behaviorProfile?.trim()) {
+    parts.push(`USER BEHAVIOR PROFILE:\n${behaviorProfile.trim()}`)
   }
-
-  if (insights && insights.length > 0) {
+  if (insights?.length) {
     parts.push(`USER INSIGHTS:\n${insights.map((i) => `- ${i}`).join('\n')}`)
   }
-
-  if (memory && memory.length > 0) {
-    const memoryText = memory.slice(0, 15).map((m: any) => `- ${m.content}`).join('\n')
-    parts.push(`USER MEMORY (use naturally, don't mention "from memory"):\n${memoryText}`)
+  if (memory?.length) {
+    parts.push(`USER MEMORY:\n${memory.slice(0, 15).map((m: any) => `- ${m.content}`).join('\n')}`)
   }
 
   parts.push('Be natural, warm, and genuinely helpful.')
