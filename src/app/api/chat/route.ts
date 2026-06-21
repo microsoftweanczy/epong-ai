@@ -9,13 +9,19 @@ export const maxDuration = 60
 /**
  * Streaming chat completion endpoint.
  *
- * Passes messages directly to the AI provider — no custom system prompt.
- * The AI responds with its natural default behavior.
+ * Sends a minimal system instruction (use proper language, don't mirror
+ * the user's typos) + the conversation history to the AI provider.
  *
  * Response: Server-Sent Events stream:
  *   data: {"content":"hello"}\n\n
  *   data: [DONE]\n\n
  */
+
+const SYSTEM_INSTRUCTION =
+  'Always respond with correct spelling, grammar, and punctuation. ' +
+  'Never mirror or imitate the user\'s typos, abbreviations, or informal shortcuts. ' +
+  'Respond in the language the user is using (Indonesian or English). ' +
+  'Be helpful, clear, and natural.'
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -29,7 +35,10 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const messages: ApiMessage[] = incoming.slice(-20)
+  const messages: ApiMessage[] = [
+    { role: 'system', content: SYSTEM_INSTRUCTION },
+    ...incoming.slice(-20),
+  ]
   const preferred: Provider = body.provider || 'auto'
 
   const encoder = new TextEncoder()
