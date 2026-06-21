@@ -95,9 +95,20 @@ export function useAuth() {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
-    clearGuest() // clear any guest session
+    clearGuest()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
+  }, [])
+
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) return
+    clearGuest()
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
+    })
   }, [])
 
   const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
@@ -138,6 +149,7 @@ export function useAuth() {
     user,
     loading,
     signInWithEmail,
+    signInWithGoogle,
     signUpWithEmail,
     signInAsGuest,
     signOut,

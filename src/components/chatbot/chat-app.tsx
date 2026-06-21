@@ -33,6 +33,7 @@ export default function ChatApp() {
     user,
     loading: authLoading,
     signInWithEmail,
+    signInWithGoogle,
     signUpWithEmail,
     signInAsGuest,
     signOut,
@@ -363,6 +364,7 @@ export default function ChatApp() {
     return (
       <LoginScreen
         onSignIn={signInWithEmail}
+        onGoogle={signInWithGoogle}
         onSignUp={signUpWithEmail}
         onGuest={signInAsGuest}
       />
