@@ -22,6 +22,7 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
   const [busy, setBusy] = useState(false)
   const [showGuestInput, setShowGuestInput] = useState(false)
   const [guestName, setGuestName] = useState('')
+  const [fadingOut, setFadingOut] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,7 +88,11 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
   }
 
   return (
-    <div className="mesh-bg safe-top safe-bottom flex min-h-[100dvh] flex-col items-center justify-center px-6 py-10">
+    <div
+      className={`mesh-bg safe-top safe-bottom flex min-h-[100dvh] flex-col items-center justify-center px-6 py-10 transition-opacity duration-300 ${
+        fadingOut ? 'opacity-0' : 'opacity-100'
+      }`}
+    >
       <div className="w-full max-w-sm">
         {/* Logo + greeting */}
         <div className="mb-7 flex flex-col items-center text-center">
@@ -203,11 +208,11 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
                 onChange={(e) => setGuestName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    onGuest(guestName)
+                    setFadingOut(true)
+                    setTimeout(() => onGuest(guestName), 300)
                   }
                 }}
                 placeholder="Nama Anda (opsional)"
-                autoFocus
                 className="h-11 w-full rounded-2xl bg-slate-100 px-4 text-[15px] text-slate-800 outline-none dark:bg-slate-800/60 dark:text-slate-100"
               />
               <div className="flex gap-2">
@@ -220,7 +225,10 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => onGuest(guestName)}
+                  onClick={() => {
+                    setFadingOut(true)
+                    setTimeout(() => onGuest(guestName), 300)
+                  }}
                   className="flex-1 rounded-2xl bg-slate-800 px-4 py-3 text-[14px] font-semibold text-white dark:bg-slate-700"
                 >
                   Mulai
