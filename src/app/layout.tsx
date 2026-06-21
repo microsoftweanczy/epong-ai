@@ -51,6 +51,12 @@ export default function RootLayout({
             __html: `(function(){try{var t=JSON.parse(localStorage.getItem('epong-theme')||'{}').state;var m=t?t.mode:'system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
           }}
         />
+        {/* Register service worker for PWA / APK support */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}`,
+          }}
+        />
       </head>
       <body className="antialiased">
         {children}
