@@ -146,7 +146,13 @@ async function searchViaDuckDuckGo(query: string): Promise<SearchResult[]> {
 // ── Main handler ──
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: ApiMessage[]; prefs?: Preferences | null }
+  let body: {
+    messages?: ApiMessage[]
+    prefs?: Preferences | null
+    memory?: any[]
+    behaviorProfile?: string
+    insights?: string[]
+  }
   try {
     body = await req.json()
   } catch {
@@ -154,7 +160,7 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const systemInstruction = buildInstruction(body.prefs)
+  const systemInstruction = buildInstruction(body.prefs, body.behaviorProfile, body.insights, body.memory)
 
   // Check if web search is needed
   const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
@@ -238,7 +244,12 @@ CRITICAL: The user is asking about current/recent events, but web search failed.
 
 // ── System instruction builder ──
 
-function buildInstruction(prefs?: Preferences | null): string {
+function buildInstruction(
+  prefs?: Preferences | null,
+  behaviorProfile?: string,
+  insights?: string[],
+  memory?: any[]
+): string {
   const p = prefs || {}
   const parts: string[] = [
     'You are Epong AI, a helpful AI assistant built by Wensy Corp (Epong) — a handsome guy from Mbodong and Waemata, Labuan Bajo.',
@@ -270,6 +281,22 @@ function buildInstruction(prefs?: Preferences | null): string {
 
   if (p.empathy) parts.push('Read the user\'s emotion and respond with empathy.')
   if (p.critical) parts.push('Be critically honest — challenge bad ideas respectfully.')
+
+  // Inject behavior profile (personalization)
+  if (behaviorProfile && behaviorProfile.trim()) {
+    parts.push(`USER BEHAVIOR PROFILE (adapt your style accordingly):\n${behaviorProfile.trim()}`)
+  }
+
+  // Inject insights
+  if (insights && insights.length > 0) {
+    parts.push(`USER INSIGHTS:\n${insights.map((i) => `- ${i}`).join('\n')}`)
+  }
+
+  // Inject memory
+  if (memory && memory.length > 0) {
+    const memoryText = memory.slice(0, 15).map((m: any) => `- ${m.content}`).join('\n')
+    parts.push(`USER MEMORY (use naturally, don't mention "from memory"):\n${memoryText}`)
+  }
 
   parts.push('Be natural, warm, and genuinely helpful.')
   return parts.join('\n')

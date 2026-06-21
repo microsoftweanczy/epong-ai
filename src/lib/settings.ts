@@ -49,6 +49,8 @@ interface SettingsState {
   prefs: Preferences
   setPrefs: (p: Partial<Preferences>) => void
   resetPrefs: () => void
+  syncPrefs: () => Promise<void>
+  loadPrefs: () => Promise<void>
 
   userId: string | null
   setUserId: (id: string | null) => void
@@ -60,9 +62,10 @@ interface SettingsState {
   updateMemory: (id: string, content: string) => Promise<void>
   deleteMemory: (id: string) => Promise<void>
 
-  // auto-generated behavior profile (summary of how the user tends to interact)
   behaviorProfile: string
   setBehaviorProfile: (s: string) => void
+  insights: string[]
+  setInsights: (i: string[]) => void
 }
 
 function uuid() {
@@ -209,12 +212,52 @@ export const useSettings = create<SettingsState>()(
 
       behaviorProfile: '',
       setBehaviorProfile: (s) => set({ behaviorProfile: s }),
+      insights: [],
+      setInsights: (i) => set({ insights: i }),
+
+      // Sync preferences to Supabase (per user, cloud sync)
+      syncPrefs: async () => {
+        const uid = get().userId
+        if (!uid || isGuestUser(uid) || !supabase) return
+        try {
+          await supabase.from('user_preferences').upsert({
+            user_id: uid,
+            prefs: get().prefs,
+            behavior_profile: get().behaviorProfile,
+            insights: get().insights,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' })
+        } catch {
+          /* table might not exist yet — silent fail */
+        }
+      },
+
+      // Load preferences from Supabase (per user)
+      loadPrefs: async () => {
+        const uid = get().userId
+        if (!uid || isGuestUser(uid) || !supabase) return
+        try {
+          const { data } = await supabase
+            .from('user_preferences')
+            .select('prefs, behavior_profile, insights')
+            .eq('user_id', uid)
+            .limit(1)
+          if (data && data[0]) {
+            if (data[0].prefs) set({ prefs: { ...DEFAULT_PREFS, ...data[0].prefs } })
+            if (data[0].behavior_profile) set({ behaviorProfile: data[0].behavior_profile })
+            if (data[0].insights) set({ insights: data[0].insights })
+          }
+        } catch {
+          /* table might not exist yet */
+        }
+      },
     }),
     {
       name: 'epong-settings',
       partialize: (s) => ({
         prefs: s.prefs,
         behaviorProfile: s.behaviorProfile,
+        insights: s.insights,
       }),
     }
   )

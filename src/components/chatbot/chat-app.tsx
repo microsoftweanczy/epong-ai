@@ -42,14 +42,17 @@ export default function ChatApp() {
 
   // keep theme in sync
   useThemeSync()
-  const { prefs, memory, behaviorProfile, loadMemory, setUserId, addMemory } =
+  const { prefs, memory, behaviorProfile, insights, loadMemory, setUserId, addMemory, loadPrefs, syncPrefs, setBehaviorProfile, setInsights } =
     useSettings()
 
-  // sync settings userId + load memory when user changes
+  // sync settings userId + load memory + load prefs when user changes
   useEffect(() => {
     setUserId(userId)
-    if (userId) loadMemory()
-  }, [userId, setUserId, loadMemory])
+    if (userId) {
+      loadMemory()
+      loadPrefs()
+    }
+  }, [userId, setUserId, loadMemory, loadPrefs])
 
   const abortRef = useRef<AbortController | null>(null)
   const skipNextLoad = useRef(false)
@@ -239,11 +242,10 @@ export default function ChatApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: apiMessages,
-            conversationId: convId,
             prefs,
             memory,
             behaviorProfile,
-            provider: prefs.provider,
+            insights,
           }),
           signal: controller.signal,
         })
@@ -318,6 +320,19 @@ export default function ChatApp() {
             content: m.content,
           }))
           extractMemories(allMsgs, memory, addMemory).catch(() => {})
+
+          // ── Auto-analyze behavior every 5 messages (personalization) ──
+          if (allMsgs.length >= 5 && allMsgs.length % 5 === 0) {
+            analyzeBehavior(allMsgs, memory, behaviorProfile)
+              .then((result) => {
+                if (result.profile) {
+                  setBehaviorProfile(result.profile)
+                  if (result.insights?.length) setInsights(result.insights)
+                  syncPrefs() // sync to Supabase per user
+                }
+              })
+              .catch(() => {})
+          }
         }
       } catch (e: any) {
         if (e.name === 'AbortError') {
@@ -511,5 +526,34 @@ async function extractMemories(
     }
   } catch {
     // silent — extraction is best-effort, never block the chat
+  }
+}
+
+// ── Auto behavior analysis helper ──
+// Runs in background after every 5 messages. Calls /api/analyze-behavior,
+// then updates the user's behavior profile + insights (synced to Supabase).
+async function analyzeBehavior(
+  messages: ApiMessage[],
+  existingMemory: MemoryNote[],
+  existingProfile: string
+): Promise<{ profile: string; insights: string[] }> {
+  try {
+    const res = await fetch('/api/analyze-behavior', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        existingMemory,
+        existingProfile,
+      }),
+    })
+    if (!res.ok) return { profile: existingProfile, insights: [] }
+    const data = await res.json()
+    return {
+      profile: data.profile || existingProfile,
+      insights: data.insights || [],
+    }
+  } catch {
+    return { profile: existingProfile, insights: [] }
   }
 }
