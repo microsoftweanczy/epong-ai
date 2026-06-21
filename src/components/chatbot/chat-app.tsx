@@ -239,7 +239,6 @@ export default function ChatApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: apiMessages,
-            provider: prefs.provider,
           }),
           signal: controller.signal,
         })

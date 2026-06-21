@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect } from 'react'
 import { ArrowUp, Square } from 'lucide-react'
-import { ProviderSelector } from './provider-selector'
 
 interface Props {
   onSend: (text: string) => void
@@ -41,7 +40,6 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
 
   return (
     <div className="safe-bottom mx-2 mb-2 mt-1 sm:mx-3 sm:mb-3">
-      <ProviderSelector />
       <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
         <div className="glass flex min-h-[48px] flex-1 items-center rounded-[24px] px-4 py-2 shadow-lg">
           <textarea

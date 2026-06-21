@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     },
   ]
 
-  const result = await completeChat(messages, 'auto')
+  const result = await completeChat(messages)
   const memories = parseMemories(result)
   return Response.json({ memories })
 }

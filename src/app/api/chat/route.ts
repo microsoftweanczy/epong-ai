@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
-import { streamChat, type Provider } from '@/lib/ai-providers'
+import { streamChat } from '@/lib/ai-providers'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -9,8 +9,7 @@ export const maxDuration = 60
 /**
  * Streaming chat completion endpoint.
  *
- * Sends a minimal system instruction (use proper language, don't mirror
- * the user's typos) + the conversation history to the AI provider.
+ * Uses OpenRouter (primary) with z-ai SDK fallback via `streamChat()`.
  *
  * Response: Server-Sent Events stream:
  *   data: {"content":"hello"}\n\n
@@ -24,10 +23,7 @@ const SYSTEM_INSTRUCTION =
   'Be helpful, clear, and natural.'
 
 export async function POST(req: NextRequest) {
-  let body: {
-    messages?: ApiMessage[]
-    provider?: Provider
-  }
+  let body: { messages?: ApiMessage[] }
   try {
     body = await req.json()
   } catch {
@@ -39,7 +35,6 @@ export async function POST(req: NextRequest) {
     { role: 'system', content: SYSTEM_INSTRUCTION },
     ...incoming.slice(-20),
   ]
-  const preferred: Provider = body.provider || 'auto'
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
@@ -47,14 +42,14 @@ export async function POST(req: NextRequest) {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
-      const ok = await streamChat(messages, preferred, (delta) =>
+      const ok = await streamChat(messages, (delta) =>
         send({ content: delta })
       )
 
       if (!ok) {
         send({
           content:
-            '*(Maaf, semua AI provider sedang bermasalah. Coba lagi sebentar ya.)*',
+            '*(Maaf, AI provider sedang bermasalah. Coba lagi sebentar ya.)*',
         })
       }
 
