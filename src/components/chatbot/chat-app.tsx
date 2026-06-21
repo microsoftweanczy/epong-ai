@@ -269,7 +269,21 @@ export default function ChatApp() {
                 accumulated += `\n\n*(Error: ${json.error})*`
                 break
               }
+              if (json.searchPerformed) {
+                // Show "searching web..." in the assistant bubble before content arrives
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? { ...m, content: '🔍 Mencari informasi terbaru di internet...' }
+                      : m
+                  )
+                )
+              }
               if (json.content) {
+                // If first content chunk, replace the "searching" placeholder
+                if (accumulated === '' && json.searchPerformed === undefined) {
+                  // already showing search text, replace it
+                }
                 accumulated += json.content
                 setMessages((prev) =>
                   prev.map((m) =>

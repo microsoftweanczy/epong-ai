@@ -10,13 +10,48 @@ export const maxDuration = 60
 /**
  * Streaming chat completion endpoint.
  *
- * Builds a dynamic system instruction from the user's preferences (tone,
- * verbosity, humor, empathy, critical thinking) + conversation history.
+ * Features:
+ * - Dynamic system instruction from user preferences
+ * - Auto web search for real-time questions
+ * - Builder identity: Wensy Corp (Epong)
  *
  * Response: Server-Sent Events stream:
  *   data: {"content":"hello"}\n\n
  *   data: [DONE]\n\n
  */
+
+// Keywords that suggest the user needs real-time / current information
+const REALTIME_KEYWORDS = [
+  'terbaru', 'hari ini', 'sekarang', 'tahun ini', 'baru saja', 'latest', 'today',
+  'current', 'recent', 'news', 'berita', 'update', 'sekarang ini', 'saat ini',
+  'kini', 'terkini', 'harga', 'cuaca', 'saham', 'bitcoin', 'crypto',
+  'jadwal', 'result', 'skor', 'trending', 'viral', '2024', '2025', '2026',
+]
+
+function needsWebSearch(text: string): boolean {
+  const lower = text.toLowerCase()
+  return REALTIME_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+async function doWebSearch(query: string): Promise<string> {
+  try {
+    const ZAIModule = await import('z-ai-web-dev-sdk')
+    const ZAI = ZAIModule.default
+    const zai = await ZAI.create()
+    const results = await zai.functions.invoke('web_search', {
+      query,
+      num: 5,
+    })
+    if (!Array.isArray(results) || results.length === 0) return ''
+    const formatted = results
+      .map((r: any, i: number) => `${i + 1}. ${r.name}\n   ${r.snippet || ''}\n   Sumber: ${r.url}`)
+      .join('\n\n')
+    return formatted
+  } catch (e: any) {
+    console.error('[chat] web search failed:', e?.message)
+    return ''
+  }
+}
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -31,8 +66,20 @@ export async function POST(req: NextRequest) {
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
   const systemInstruction = buildInstruction(body.prefs)
+
+  // Check if the latest user message needs real-time data
+  const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
+  let searchContext = ''
+  if (lastUserMsg && needsWebSearch(lastUserMsg.content)) {
+    searchContext = await doWebSearch(lastUserMsg.content)
+  }
+
+  const fullSystem = searchContext
+    ? `${systemInstruction}\n\nREAL-TIME WEB SEARCH RESULTS (use this data to answer, cite sources when relevant):\n${searchContext}`
+    : systemInstruction
+
   const messages: ApiMessage[] = [
-    { role: 'system', content: systemInstruction },
+    { role: 'system', content: fullSystem },
     ...incoming.slice(-20),
   ]
 
@@ -41,6 +88,11 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+
+      // Notify client that web search was performed
+      if (searchContext) {
+        send({ searchPerformed: true })
+      }
 
       const ok = await streamChat(messages, (delta) =>
         send({ content: delta })
@@ -69,20 +121,19 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Build a dynamic system instruction from user preferences.
- * Keeps it concise — only the rules the user has chosen.
+ * Build a dynamic system instruction from user preferences + builder identity.
  */
 function buildInstruction(prefs?: Preferences | null): string {
   const p = prefs || {}
   const parts: string[] = [
-    'You are a helpful AI assistant.',
+    'You are Epong AI, a helpful AI assistant built by Wensy Corp (Epong) — a handsome guy from Mbodong and Waemata, Labuan Bajo.',
     'Detect the language the user speaks and respond in that same language.',
     'Always use correct spelling, grammar, and punctuation — never mirror the user\'s typos or slang spelling.',
   ]
 
   // Tone
   const toneMap: Record<string, string> = {
-    santai: 'Communication style: casual and friendly, like a smart friend. Use informal pronouns (e.g. "kamu" in Indonesian, "you" casually in English).',
+    santai: 'Communication style: casual and friendly, like a smart friend. Use informal pronouns (e.g. "kamu" in Indonesian).',
     akrab: 'Communication style: very warm and close, like a best friend. Use informal pronouns.',
     profesional: 'Communication style: professional but approachable. Use formal pronouns (e.g. "Anda" in Indonesian).',
     formal: 'Communication style: formal and respectful. Use formal pronouns and complete sentences.',
