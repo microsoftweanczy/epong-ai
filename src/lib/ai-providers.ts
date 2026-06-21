@@ -14,7 +14,7 @@ import type { ApiMessage } from './types'
 const MAX_HISTORY = 20
 const ERROR_PREVIEW = 200
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
-const OPENROUTER_DEFAULT_MODEL = 'qwen/qwen-2.5-72b-instruct:free'
+const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const REQUEST_TIMEOUT_MS = 6000
 
 // ── Public API ──

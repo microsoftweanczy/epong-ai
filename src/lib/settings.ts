@@ -18,7 +18,6 @@ export interface Preferences {
   humor: HumorLevel
   empathy: boolean // adapt to user's emotion
   critical: boolean // challenge ideas critically when needed
-  language: 'id' | 'en' // response language
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -27,7 +26,6 @@ const DEFAULT_PREFS: Preferences = {
   humor: 'sedikit',
   empathy: true,
   critical: true,
-  language: 'id',
 }
 
 // ────────────────────────────────────────────────────────────

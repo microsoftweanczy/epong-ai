@@ -186,16 +186,6 @@ export function SettingsPanel({ open, onClose }: Props) {
                   onChange={(v) => setPrefs({ humor: v as HumorLevel })}
                 />
               </Field>
-              <Field label="Bahasa respons">
-                <SegmentedOptions
-                  value={prefs.language}
-                  options={[
-                    { value: 'id', label: 'Indonesia' },
-                    { value: 'en', label: 'English' },
-                  ]}
-                  onChange={(v) => setPrefs({ language: v as 'id' | 'en' })}
-                />
-              </Field>
 
               <ToggleRow
                 icon={Heart}

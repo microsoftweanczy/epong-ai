@@ -19,7 +19,7 @@ export const maxDuration = 60
 const SYSTEM_INSTRUCTION =
   'Always respond with correct spelling, grammar, and punctuation. ' +
   'Never mirror or imitate the user\'s typos, abbreviations, or informal shortcuts. ' +
-  'Respond in the language the user is using (Indonesian or English). ' +
+  'Respond in whatever language the user is speaking. ' +
   'Be helpful, clear, and natural.'
 
 export async function POST(req: NextRequest) {
