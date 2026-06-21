@@ -3,9 +3,14 @@
   "short_name": "Epong AI",
   "description": "A beautiful personal AI chatbot powered by GLM.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#eef2ff",
   "theme_color": "#6366F1",
+  "id": "/",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
