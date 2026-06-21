@@ -123,7 +123,7 @@ async function streamFromOpenRouter(
       'HTTP-Referer': 'https://epong-ai.vercel.app',
       'X-Title': 'Epong AI',
     },
-    body: JSON.stringify({ model, messages, stream: true }),
+    body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
