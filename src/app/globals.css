@@ -177,6 +177,25 @@
     radial-gradient(at 85% 85%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
 }
 
+/* App shell — centers & constrains the whole app on ultra-wide desktops
+   while staying full-bleed on mobile/tablet. */
+.app-shell {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (min-width: 1536px) {
+  .app-shell {
+    max-width: 1600px;
+  }
+}
+@media (min-width: 1920px) {
+  .app-shell {
+    max-width: 1760px;
+  }
+}
+
 /* iOS-style refined scrollbar */
 .thin-scrollbar {
   scrollbar-width: thin;

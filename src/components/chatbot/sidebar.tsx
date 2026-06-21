@@ -58,16 +58,17 @@ export function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[84%] max-w-xs flex-col transition-transform duration-300 ease-out sm:static sm:z-0 sm:w-72 sm:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[80%] max-w-[320px] flex-col transition-transform duration-300 ease-out sm:static sm:z-0 sm:w-72 sm:max-w-none sm:translate-x-0 lg:w-80 ${
           open ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        }`
+      }
       >
-        <div className="safe-top safe-x glass m-2 flex h-[calc(100dvh-1rem)] flex-col rounded-[28px] sm:m-3 sm:h-[calc(100dvh-1.5rem)]">
+        <div className="safe-top safe-x glass m-2 flex h-[calc(100dvh-1rem)] flex-col rounded-[24px] sm:m-2.5 sm:h-[calc(100dvh-1.25rem)] lg:m-3 lg:h-[calc(100dvh-1.5rem)] lg:rounded-[28px]">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pb-2 pt-4">
-            <div className="flex items-center gap-2.5">
-              <Logo size={34} />
-              <span className="text-[18px] font-semibold tracking-[-0.02em] text-slate-800 dark:text-slate-100">
+          <div className="flex items-center justify-between px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <Logo size={32} />
+              <span className="text-[16px] font-semibold tracking-[-0.02em] text-slate-800 sm:text-[18px] dark:text-slate-100">
                 Epong AI
               </span>
             </div>
@@ -81,10 +82,10 @@ export function Sidebar({
           </div>
 
           {/* New chat */}
-          <div className="px-3 pb-2">
+          <div className="px-2.5 pb-2 sm:px-3">
             <button
               onClick={onNew}
-              className="tap-feedback flex w-full items-center gap-2 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-4 py-2.5 text-[15px] font-medium text-white shadow-md shadow-[#0A84FF]/25 hover:brightness-110"
+              className="tap-feedback flex w-full items-center gap-2 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-3.5 py-2.5 text-[14px] font-medium text-white shadow-md shadow-[#0A84FF]/25 hover:brightness-110 sm:px-4 sm:text-[15px]"
             >
               <Plus className="h-5 w-5" />
               Obrolan Baru
@@ -92,7 +93,7 @@ export function Sidebar({
           </div>
 
           {/* List */}
-          <div className="thin-scrollbar flex-1 overflow-y-auto px-2 pb-2">
+          <div className="thin-scrollbar flex-1 overflow-y-auto px-2 pb-2 sm:px-2">
             {conversations.length === 0 && (
               <div className="px-3 py-8 text-center text-sm text-slate-400">
                 Belum ada obrolan.
@@ -106,7 +107,7 @@ export function Sidebar({
               return (
                 <div
                   key={c.id}
-                  className={`group relative mb-0.5 flex items-center gap-2 rounded-2xl px-3 py-2.5 transition ${
+                  className={`group relative mb-0.5 flex items-center gap-2 rounded-xl px-2.5 py-2.5 transition sm:rounded-2xl sm:px-3 ${
                     isActive
                       ? 'bg-white/70 shadow-sm'
                       : 'hover:bg-white/40'
@@ -130,10 +131,10 @@ export function Sidebar({
                       onClick={() => onSelect(c.id)}
                       className="flex min-w-0 flex-1 flex-col text-left"
                     >
-                      <span className="truncate text-[14px] font-medium text-slate-700">
+                      <span className="truncate text-[13px] font-medium text-slate-700 sm:text-[14px]">
                         {c.title}
                       </span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[10px] text-slate-400 sm:text-[11px]">
                         {formatTime(c.updatedAt)}
                       </span>
                     </button>
@@ -175,22 +176,22 @@ export function Sidebar({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-white/40 px-3 py-2.5">
+          <div className="border-t border-white/40 px-2.5 py-2 sm:px-3 sm:py-2.5">
             <button
               onClick={onSettings}
-              className="tap-feedback mb-1 flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              className="tap-feedback mb-1 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
               <Settings className="h-5 w-5" />
-              <span className="text-[15px] font-medium">Pengaturan</span>
+              <span className="text-[14px] font-medium sm:text-[15px]">Pengaturan</span>
             </button>
             <button
               onClick={onSignOut}
-              className="tap-feedback flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              className="tap-feedback flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
               <LogOut className="h-5 w-5" />
-              <span className="text-[15px] font-medium">Keluar</span>
+              <span className="text-[14px] font-medium sm:text-[15px]">Keluar</span>
               {userName && (
-                <span className="ml-auto truncate text-[12px] text-slate-400">
+                <span className="ml-auto max-w-[80px] truncate text-[11px] text-slate-400 sm:max-w-[100px] sm:text-[12px]">
                   {userName}
                 </span>
               )}

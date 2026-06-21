@@ -125,11 +125,11 @@ export function SettingsPanel({ open, onClose }: Props) {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="text-[17px] font-semibold tracking-tight">Pengaturan</h2>
+        <h2 className="text-[16px] font-semibold tracking-tight sm:text-[17px]">Pengaturan</h2>
       </div>
 
       <div className="thin-scrollbar safe-bottom flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-4 py-5 sm:px-6">
+        <div className="mx-auto w-full max-w-2xl px-4 py-4 sm:px-6 sm:py-5 lg:max-w-3xl">
           {/* ── Theme ── */}
           <Section icon={Sun} title="Tema" subtitle="Tampilan terang, gelap, atau ikut sistem">
             <div className="grid grid-cols-3 gap-2.5">

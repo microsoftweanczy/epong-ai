@@ -34,7 +34,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#6366F1",
+  themeColor: "#0A84FF",
   mobileVariant: {
     interactiveWidget: true,
   },

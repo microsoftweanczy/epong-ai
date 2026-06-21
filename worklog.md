@@ -188,3 +188,44 @@ Work Log:
 
 Stage Summary:
 - App rebranded to "Epong AI" with custom logo throughout. Icons + manifest ready for PWA install and Vercel deploy.
+
+---
+Task ID: 15
+Agent: main
+Task: Optimize UI/UX and app ratio/sizing for both mobile and PC/desktop
+
+Work Log:
+- Fixed theme color mismatch: layout.tsx themeColor #6366F1 (indigo) → #0A84FF (blue) to match the app's actual blue accent. Also fixed manifest.json theme_color + background_color.
+- globals.css: added `.app-shell` utility — full-bleed on mobile/tablet, centered & constrained on ultra-wide desktops (max-width 1600px @1536px+, 1760px @1920px+) so the app never stretches awkwardly on big monitors.
+- chat-app.tsx: wrapped entire app in `.app-shell` flex container. Header: tighter on mobile (px-2 py-2, gap-1, text-[15px]) → more breathing room on desktop (sm:px-3, sm:gap-1.5, sm:text-[17px], lg:mx-4 lg:mt-4). Incognito banner: more compact (py-1, text-[11px]→sm:text-[12px]).
+- sidebar.tsx: mobile width 84%→80% (max-w-[320px]) so more chat is visible behind the overlay. Desktop w-72→w-80 (lg:) for better use of horizontal space. Responsive padding: tighter on mobile (px-2.5, text-[13px]) → relaxed on desktop (sm:px-4, sm:text-[14px]). List items: rounded-xl on mobile → rounded-2xl on desktop. Footer buttons: smaller text on mobile (text-[14px]→sm:text-[15px]). User name in Keluar button: max-w constraint so it truncates cleanly.
+- message-list.tsx: content width max-w-3xl → max-w-4xl on desktop (lg:) for better readability on wide screens. Responsive padding: px-3 py-4 (mobile) → sm:px-5 sm:py-5 → lg:px-8 lg:py-6. Message gap: gap-3 (mobile) → sm:gap-4 → lg:gap-5.
+- message-bubble.tsx: user bubble max-width responsive: 85% (mobile) → 75% (sm) → 70% (lg) so bubbles don't stretch too wide on desktop. Text size: text-[14px] (mobile) → sm:text-[15px]. Assistant text: same responsive scaling.
+- composer.tsx: max-w-3xl → lg:max-w-4xl (matches message list). Min-height 44px on mobile → 48px on sm+. Send/stop buttons: h-11 w-11 (mobile) → sm:h-12 sm:w-12. Text size: text-[15px] (mobile) → sm:text-[16px]. Horizontal margins scale: mx-2 → sm:mx-3 → lg:mx-4.
+- welcome.tsx: fixed logo shadow indigo-500/30 → #0A84FF/30 (matches blue theme). Logo 76→64px (better proportion on small screens). Responsive text: greeting 22px→sm:27px, quote 15px→sm:17px. Responsive padding px-4→sm:px-6→lg:px-8.
+- login-screen.tsx: fixed logo shadow indigo-500/30 → #0A84FF/30. Logo 80→68px. Card max-w-sm → sm:max-w-md (wider on desktop). All text/inputs/buttons responsive (smaller on mobile, standard on sm+). Submit button py-3 → sm:py-3.5. Input height h-11 → sm:h-12.
+- settings-panel.tsx: content max-w-2xl → lg:max-w-3xl (wider on desktop). Header title text-[16px] → sm:text-[17px]. Padding py-5 → sm:py-5, py-4 on mobile.
+- Restarted dev server (previous process had died). Used `(nohup ./node_modules/.bin/next dev -p 3000 > dev.log 2>&1 &)` subshell pattern for persistence — server now stable (PID 2590, serving 200s).
+- Agent Browser verification on TWO viewports:
+  * Mobile (iPhone 14, 390×844): login → guest → welcome → send message → chat with AI reply (markdown list renders). Settings panel opens full-screen. All interactive.
+  * Desktop (1440×900): login → guest → welcome → send message → chat with AI reply. Sidebar visible by default. Settings panel opens centered. All interactive.
+- VLM (glm-4.6v) visual review of all 6 screenshots confirmed:
+  * Mobile login: well-sized, balanced spacing, appropriately sized buttons, clean.
+  * Mobile welcome: balanced layout, proportional logo/greeting/quote, mobile-friendly spacing.
+  * Mobile chat: well-proportioned, balanced spacing, readable text, adequate touch targets, no visual issues.
+  * Mobile settings: well-sized full-screen overlay, readable, good spacing, adequate touch targets.
+  * Desktop login: well-centered card, appropriately sized, uses desktop space effectively.
+  * Desktop chat: well-proportioned, sidebar width (~220px content) appropriate, chat content area (~1220px) well-sized, balanced spacing, no visual issues.
+  * Desktop settings: well-sized and centered, readable, good spacing, clean layout.
+- Lint: 0 errors. Dev log: all 200 responses, no runtime/console errors.
+
+Stage Summary:
+- UI/UX fully optimized for both mobile and desktop with a consistent responsive strategy:
+  - Mobile-first compact spacing → progressively relaxed at sm/lg/xl breakpoints.
+  - App constrained to max 1600–1760px on ultra-wide desktops (no awkward stretching).
+  - Chat content widens from max-w-3xl → max-w-4xl on desktop for better readability.
+  - Sidebar: 80% width on mobile (was 84%), w-80 on desktop (was w-72).
+  - All touch targets ≥44px on mobile, ≥48px on desktop.
+  - Fixed theme color mismatch (indigo → blue) across layout.tsx + manifest.json.
+  - Fixed logo shadow color (indigo → blue) in welcome.tsx + login-screen.tsx.
+- Verified end-to-end on both viewports with Agent Browser + VLM. Ready for use.

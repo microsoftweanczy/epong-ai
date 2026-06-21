@@ -24,9 +24,9 @@ export function MessageList({ messages, streamingId }: Props) {
   return (
     <div
       ref={containerRef}
-      className="thin-scrollbar flex-1 overflow-y-auto px-4 py-6 sm:px-6"
+      className="thin-scrollbar flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6"
     >
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4 lg:max-w-4xl lg:gap-5">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}

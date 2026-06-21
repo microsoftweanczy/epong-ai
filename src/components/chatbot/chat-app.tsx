@@ -380,82 +380,84 @@ export default function ChatApp() {
 
   return (
     <div className="mesh-bg relative flex h-[100dvh] w-full overflow-hidden">
-      <Sidebar
-        conversations={conversations}
-        activeId={activeId}
-        open={sidebarOpen}
-        userName={user.name}
-        onClose={() => setSidebarOpen(false)}
-        onSelect={handleSelect}
-        onNew={handleNew}
-        onDelete={handleDelete}
-        onRename={handleRename}
-        onSettings={() => {
-          setSidebarOpen(false)
-          setSettingsOpen(true)
-        }}
-        onSignOut={signOut}
-      />
-
-      {/* Main */}
-      <main className="relative flex min-w-0 flex-1 flex-col">
-        {/* Floating glass top bar */}
-        <header className="safe-top glass-bar sticky top-0 z-20 mx-2 mt-2 flex items-center gap-1.5 rounded-2xl px-2.5 py-2.5 shadow-md sm:mx-3 sm:mt-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:hidden"
-            aria-label="Buka obrolan"
-          >
-            <Menu className="h-[18px] w-[18px]" />
-          </button>
-          <div className="min-w-0 flex-1 px-1">
-            <h1 className="truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white">
-              {activeConv?.title || 'Epong AI'}
-            </h1>
-          </div>
-          <IncognitoToggle />
-          <button
-            onClick={handleNew}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
-            aria-label="Obrolan baru"
-          >
-            <SquarePen className="h-[18px] w-[18px]" />
-          </button>
-        </header>
-
-        {/* Incognito mode banner */}
-        {incognito && (
-          <div className="mx-2 mb-1 flex items-center justify-center gap-2 rounded-full bg-violet-500/10 px-4 py-1.5 sm:mx-3">
-            <EyeOff className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-            <span className="text-[12px] font-medium text-violet-700 dark:text-violet-300">
-              Mode penyamaran — obrolan tidak disimpan
-            </span>
-          </div>
-        )}
-
-        {/* Body */}
-        {showWelcome ? (
-          <div className="flex flex-1 flex-col">
-            <Welcome userName={user.name} />
-          </div>
-        ) : (
-          <>
-            <MessageList messages={messages} streamingId={streamingId} />
-            {loadingMsgs && messages.length === 0 && (
-              <div className="flex items-center justify-center py-10 text-sm text-slate-400">
-                Memuat obrolan…
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Composer */}
-        <Composer
-          onSend={handleSend}
-          onStop={handleStop}
-          busy={streamingId !== null}
+      <div className="app-shell flex h-full w-full overflow-hidden">
+        <Sidebar
+          conversations={conversations}
+          activeId={activeId}
+          open={sidebarOpen}
+          userName={user.name}
+          onClose={() => setSidebarOpen(false)}
+          onSelect={handleSelect}
+          onNew={handleNew}
+          onDelete={handleDelete}
+          onRename={handleRename}
+          onSettings={() => {
+            setSidebarOpen(false)
+            setSettingsOpen(true)
+          }}
+          onSignOut={signOut}
         />
-      </main>
+
+        {/* Main */}
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          {/* Floating glass top bar */}
+          <header className="safe-top glass-bar sticky top-0 z-20 mx-2 mt-2 flex items-center gap-1 rounded-2xl px-2 py-2 shadow-md sm:mx-3 sm:mt-3 sm:gap-1.5 sm:px-3 lg:mx-4 lg:mt-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:hidden"
+              aria-label="Buka obrolan"
+            >
+              <Menu className="h-[18px] w-[18px]" />
+            </button>
+            <div className="min-w-0 flex-1 px-1">
+              <h1 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:text-[17px] dark:text-white">
+                {activeConv?.title || 'Epong AI'}
+              </h1>
+            </div>
+            <IncognitoToggle />
+            <button
+              onClick={handleNew}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+              aria-label="Obrolan baru"
+            >
+              <SquarePen className="h-[18px] w-[18px]" />
+            </button>
+          </header>
+
+          {/* Incognito mode banner */}
+          {incognito && (
+            <div className="mx-2 mb-0.5 mt-1 flex items-center justify-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 sm:mx-3 lg:mx-4">
+              <EyeOff className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+              <span className="text-[11px] font-medium text-violet-700 sm:text-[12px] dark:text-violet-300">
+                Mode penyamaran — obrolan tidak disimpan
+              </span>
+            </div>
+          )}
+
+          {/* Body */}
+          {showWelcome ? (
+            <div className="flex flex-1 flex-col">
+              <Welcome userName={user.name} />
+            </div>
+          ) : (
+            <>
+              <MessageList messages={messages} streamingId={streamingId} />
+              {loadingMsgs && messages.length === 0 && (
+                <div className="flex items-center justify-center py-10 text-sm text-slate-400">
+                  Memuat obrolan…
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Composer */}
+          <Composer
+            onSend={handleSend}
+            onStop={handleStop}
+            busy={streamingId !== null}
+          />
+        </main>
+      </div>
 
       {/* Settings */}
       <SettingsPanel
