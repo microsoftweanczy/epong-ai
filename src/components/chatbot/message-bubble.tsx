@@ -4,7 +4,6 @@ import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { ChatMessage } from '@/lib/types'
 import { formatTime } from '@/lib/format'
-import { Logo } from './logo'
 
 interface Props {
   message: ChatMessage
@@ -15,7 +14,7 @@ function MessageBubbleBase({ message, streaming }: Props) {
   const isUser = message.role === 'user'
 
   if (isUser) {
-    // User message: right-aligned bubble (only user gets a bubble)
+    // User message: right-aligned, subtle bubble
     return (
       <div className="flex justify-end">
         <div className="flex max-w-[85%] flex-col items-end">
@@ -32,25 +31,22 @@ function MessageBubbleBase({ message, streaming }: Props) {
     )
   }
 
-  // Assistant — Claude/ChatGPT style: avatar + PLAIN TEXT, no bubble, no background
+  // Assistant — pure plain text, NO bubble, NO avatar, NO background
   return (
-    <div className="flex gap-3">
-      <Logo size={28} className="mt-1 shrink-0" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        {message.content ? (
-          <div className="md-body text-[15px] leading-relaxed text-slate-800 dark:text-slate-100">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-            {streaming && (
-              <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
-            )}
-          </div>
-        ) : (
-          <ThinkingDots />
-        )}
-        <span className="mt-0.5 text-[10px] text-slate-400">
-          {formatTime(message.createdAt)}
-        </span>
-      </div>
+    <div className="flex flex-col">
+      {message.content ? (
+        <div className="md-body text-[15px] leading-relaxed text-slate-800 dark:text-slate-100">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+          {streaming && (
+            <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
+          )}
+        </div>
+      ) : (
+        <ThinkingDots />
+      )}
+      <span className="mt-0.5 text-[10px] text-slate-400">
+        {formatTime(message.createdAt)}
+      </span>
     </div>
   )
 }
