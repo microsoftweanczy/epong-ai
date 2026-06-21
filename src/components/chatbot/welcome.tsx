@@ -48,9 +48,8 @@ export function Welcome({ userName }: Props) {
         {greeting}
       </h1>
 
-      {/* Quote card — from API only */}
+      {/* Quote — plain text, no bubble */}
       <div className="mt-7 w-full max-w-md">
-        <div className="glass rounded-3xl px-6 py-5 shadow-md">
           <div className="mb-2 flex items-center justify-center gap-2">
             <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-indigo-400">
@@ -73,7 +72,6 @@ export function Welcome({ userName }: Props) {
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#0A84FF] align-middle" />
             </p>
           )}
-        </div>
       </div>
 
       {/* Hint to start chatting */}

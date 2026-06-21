@@ -15,22 +15,24 @@ function MessageBubbleBase({ message, streaming }: Props) {
   const isUser = message.role === 'user'
 
   if (isUser) {
-    // User message: right-aligned, no bubble — just text + label
+    // User message: right-aligned bubble (only user gets a bubble)
     return (
-      <div className="flex flex-col items-end">
-        <div className="max-w-[90%] text-right text-[15px] leading-relaxed text-slate-900 dark:text-slate-100">
-          <div className="whitespace-pre-wrap break-words">
-            {message.content}
+      <div className="flex justify-end">
+        <div className="flex max-w-[85%] flex-col items-end">
+          <div className="rounded-2xl rounded-br-md bg-slate-200/80 px-4 py-2.5 text-[15px] leading-relaxed text-slate-900 dark:bg-slate-700/60 dark:text-slate-100">
+            <div className="whitespace-pre-wrap break-words">
+              {message.content}
+            </div>
           </div>
+          <span className="mr-1 mt-0.5 text-[10px] text-slate-400">
+            {formatTime(message.createdAt)}
+          </span>
         </div>
-        <span className="mt-0.5 text-[10px] text-slate-400">
-          {formatTime(message.createdAt)}
-        </span>
       </div>
     )
   }
 
-  // Assistant — ChatGPT style: avatar + clean plain text, NO bubble at all
+  // Assistant — Claude/ChatGPT style: avatar + PLAIN TEXT, no bubble, no background
   return (
     <div className="flex gap-3">
       <Logo size={28} className="mt-1 shrink-0" />
