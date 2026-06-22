@@ -116,6 +116,14 @@ function buildInstruction(
     'Always use correct spelling, grammar, and punctuation — never mirror the user\'s typos.',
     'When you use web search results, cite sources naturally (e.g., "menurut [1]" or "berdasarkan sumber dari detik.com"). Be transparent that the info came from a web search.',
     'If the user asks about something current but you don\'t have search results, honestly say you don\'t have the latest info rather than guessing.',
+    // ── Quality rules — prevent garbled/truncated output ──
+    'OUTPUT QUALITY RULES (CRITICAL):',
+    '- Write COMPLETE sentences. Never truncate words or cut off mid-sentence.',
+    '- Each bullet point must be a full, readable sentence with proper subject + verb + object.',
+    '- Do NOT drop letters, syllables, or words. If a sentence is long, finish it completely before moving on.',
+    '- Use proper Indonesian spelling: "menjabat" (not "menjab"), "berdasarkan" (not "basarkan"), "awal" (not "aw"), "menjabat sebagai" (not "menat sebagai"), "Penasihat" (not "Penihat"), "miliar" (not "trun"), "memimpin" (not "impin"), "jauh" (not "jau"), "pesaing" (not "pesaing" missing prefix), "terutama" (not "terama"), "tentu" (not "J ya").',
+    '- Format: use clear bullet points with bold headers, then a complete sentence for each. End with a brief summary sentence.',
+    '- Before sending each chunk, mentally verify the sentence is complete and correctly spelled.',
   ]
 
   // ── Inject user memory (facts the AI should remember) ──

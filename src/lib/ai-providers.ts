@@ -230,18 +230,6 @@ async function completeFromOpenRouter(
 
 // ── z-ai SDK (built-in fallback) ──
 
-function decodeChunk(chunk: unknown): string {
-  if (typeof chunk === 'string') return chunk
-  if (chunk instanceof Uint8Array) return Buffer.from(chunk).toString('utf8')
-  if (chunk && typeof chunk === 'object') {
-    const vals = Object.values(chunk as Record<string, unknown>)
-    if (typeof vals[0] === 'number') {
-      return Buffer.from(vals as number[]).toString('utf8')
-    }
-  }
-  return ''
-}
-
 async function streamFromZAI(
   messages: ApiMessage[],
   onDelta: (text: string) => void
@@ -249,32 +237,27 @@ async function streamFromZAI(
   const ZAIModule = await import('z-ai-web-dev-sdk')
   const ZAI = ZAIModule.default
   const zai = await ZAI.create()
+
+  // IMPORTANT: The z-ai SDK's streaming mode drops characters (produces garbled
+  // text like "menjab" instead of "menjabat"). Using non-streaming mode gives
+  // perfect quality. We fetch the full response, then emit it in small chunks
+  // so the client still sees a "typing" effect.
   const completion: any = await zai.chat.completions.create({
     messages,
-    stream: true,
     thinking: { type: 'disabled' },
   } as any)
 
-  if (completion && typeof completion[Symbol.asyncIterator] === 'function') {
-    for await (const chunk of completion as AsyncIterable<unknown>) {
-      const text = decodeChunk(chunk)
-      for (const line of text.split('\n')) {
-        const t = line.trim()
-        if (!t.startsWith('data:')) continue
-        const payload = t.slice(5).trim()
-        if (payload === '[DONE]') continue
-        try {
-          const json = JSON.parse(payload)
-          const delta = json?.choices?.[0]?.delta?.content
-          if (delta) onDelta(delta)
-        } catch {
-          /* ignore */
-        }
-      }
+  const fullText: string = completion?.choices?.[0]?.message?.content || ''
+  if (!fullText) return
+
+  // Emit in word-sized chunks for a natural streaming feel, without losing chars.
+  const words = fullText.split(/(\s+)/) // keep whitespace tokens
+  for (const word of words) {
+    onDelta(word)
+    // Tiny yield so the UI updates progressively (non-blocking)
+    if (word.trim()) {
+      await new Promise((r) => setTimeout(r, 12))
     }
-  } else {
-    const content = completion?.choices?.[0]?.message?.content
-    if (content) onDelta(content)
   }
 }
 

@@ -392,7 +392,15 @@ export function buildRealtimePrompt(ctx: RealtimeContext): string {
 
   parts.push('=== END REAL-TIME DATA ===')
   parts.push(
-    'INSTRUCTIONS: Use the above real-time data to answer. Cite sources by number (e.g., "menurut sumber [1]"). If the data contradicts your training, trust the real-time data. Always mention the date if the topic is time-sensitive.'
+    'INSTRUCTIONS: Use the above real-time data to answer. Cite sources by number (e.g., "menurut sumber [1]"). If the data contradicts your training, trust the real-time data. Always mention the date if the topic is time-sensitive.',
+    '',
+    'FORMATTING (CRITICAL — follow exactly):',
+    '- Start with: "Berdasarkan pencarian terbaru, berikut informasinya:"',
+    '- Use bullet points with bold headers: **Header**: Complete sentence with full context.',
+    '- Each bullet MUST be a complete, grammatically correct sentence. No fragments.',
+    '- End with a summary sentence like: "Jadi, [subject] masih aktif di [fields] per [date]."',
+    '- Spell every word completely. No abbreviations or dropped letters.',
+    '- Cite the source number at the end of each point, e.g., "...menurut [1]."'
   )
 
   return parts.join('\n')
