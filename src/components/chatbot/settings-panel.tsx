@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   Heart,
   Zap,
+  Shield,
 } from 'lucide-react'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import {
@@ -125,11 +126,11 @@ export function SettingsPanel({ open, onClose }: Props) {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="text-[17px] font-semibold tracking-tight">Pengaturan</h2>
+        <h2 className="text-[16px] font-semibold tracking-tight sm:text-[17px]">Pengaturan</h2>
       </div>
 
       <div className="thin-scrollbar safe-bottom flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-4 py-5 sm:px-6">
+        <div className="mx-auto w-full max-w-2xl px-4 py-4 sm:px-6 sm:py-5 lg:max-w-3xl">
           {/* ── Theme ── */}
           <Section icon={Sun} title="Tema" subtitle="Tampilan terang, gelap, atau ikut sistem">
             <div className="grid grid-cols-3 gap-2.5">
@@ -201,6 +202,13 @@ export function SettingsPanel({ open, onClose }: Props) {
                 checked={prefs.critical}
                 onChange={(v) => setPrefs({ critical: v })}
               />
+              <ToggleRow
+                icon={Shield}
+                label="Mode Aman"
+                desc="Filter konten tidak pantas (NSFW, judi)"
+                checked={prefs.safeMode}
+                onChange={(v) => setPrefs({ safeMode: v })}
+              />
 
               <button
                 onClick={() => {
@@ -213,16 +221,13 @@ export function SettingsPanel({ open, onClose }: Props) {
               </button>
             </div>
 
-            {/* Save button */}
+            {/* Close button — prefs auto-save via zustand+persist */}
             <div className="sticky bottom-0 mt-2 flex gap-2 rounded-2xl bg-white/80 px-4 py-3 backdrop-blur dark:bg-slate-900/80">
               <button
-                onClick={() => {
-                  toast.success('Preferensi disimpan', { duration: 2000 })
-                  onClose()
-                }}
+                onClick={onClose}
                 className="flex-1 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-4 py-3 text-[15px] font-semibold text-white shadow-lg shadow-[#0A84FF]/30 transition hover:brightness-110 active:scale-[0.98]"
               >
-                Simpan
+                Selesai
               </button>
             </div>
           </Section>

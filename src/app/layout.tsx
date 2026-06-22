@@ -34,10 +34,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#6366F1",
-  mobileVariant: {
-    interactiveWidget: true,
-  },
+  themeColor: "#0A84FF",
 };
 
 export default function RootLayout({
@@ -48,16 +45,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Apply theme before hydration to prevent flash of wrong theme */}
+        {/* Apply theme before hydration to prevent flash of wrong theme.
+            Default to LIGHT (not system) so first-time visitors always see light. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=JSON.parse(localStorage.getItem('epong-theme')||'{}').state;var m=t?t.mode:'system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
+            __html: `(function(){try{var t=JSON.parse(localStorage.getItem('epong-theme')||'{}').state;var m=t?t.mode:'light';var d=m==='dark';if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
           }}
         />
-        {/* Register service worker for PWA / APK support */}
+        {/* Register service worker for PWA / APK support.
+            Also auto-reload when a new SW takes control — this is critical
+            for recovering from stale cached HTML (old SW serving broken chunks). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}`,
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})});navigator.serviceWorker.addEventListener('controllerchange',function(){if(!window.__swReloading){window.__swReloading=true;window.location.reload()}});}`,
           }}
         />
       </head>

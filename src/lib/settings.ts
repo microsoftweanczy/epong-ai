@@ -18,6 +18,7 @@ export interface Preferences {
   humor: HumorLevel
   empathy: boolean // adapt to user's emotion
   critical: boolean // challenge ideas critically when needed
+  safeMode: boolean // filter NSFW content
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -26,6 +27,7 @@ const DEFAULT_PREFS: Preferences = {
   humor: 'sedikit',
   empathy: true,
   critical: true,
+  safeMode: false,
 }
 
 // ────────────────────────────────────────────────────────────

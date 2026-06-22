@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
@@ -60,66 +60,146 @@ function clearGuest() {
 export function useAuth() {
   // Start with null on both server and client (avoids hydration mismatch).
   // Guest session is loaded in useEffect after hydration.
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUserState] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  // Keep the latest user id in a ref so onAuthStateChange can dedupe
+  // (Supabase fires INITIAL_SESSION + TOKEN_REFRESHED repeatedly with the
+  // same session — without dedupe each event triggers a pointless re-render).
+  const userIdRef = useRef<string | null>(null)
+
+  const applyUser = useCallback((u: AuthUser | null) => {
+    const newId = u?.id ?? null
+    if (newId === userIdRef.current) {
+      // Same user (or both null) — no state change needed.
+      return
+    }
+    userIdRef.current = newId
+    setUserState(u)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
+    let settled = false
+
+    const finish = (u: AuthUser | null) => {
+      if (settled || cancelled) return
+      settled = true
+      applyUser(u)
+      setLoading(false)
+    }
 
     const init = async () => {
       // Check for existing guest session first (client-only, post-hydration)
       const guest = loadGuest()
       if (guest) {
-        if (!cancelled) {
-          setUser(guest)
-          setLoading(false)
-        }
+        finish(guest)
         return
       }
 
+      // No Supabase configured → instant finish (no timeout needed).
       if (!supabase) {
-        if (!cancelled) setLoading(false)
+        finish(null)
         return
       }
 
-      // Get Supabase session
-      const { data } = await supabase.auth.getSession()
-      if (!cancelled) {
-        setUser(normalizeUser(data.session?.user ?? null))
-        setLoading(false)
+      // Race getSession against a timeout — if Supabase is unreachable or
+      // slow, we never want to be stuck on "Memuat…".
+      let timedOut = false
+      const timeout = setTimeout(() => {
+        if (timedOut) return
+        timedOut = true
+        console.warn(
+          '[auth] Supabase getSession timed out after 4s — proceeding unauthenticated.'
+        )
+        finish(null)
+      }, 4000)
+
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (timedOut) return
+        clearTimeout(timeout)
+        finish(normalizeUser(data.session?.user ?? null))
+      } catch (e) {
+        if (timedOut) return
+        clearTimeout(timeout)
+        console.warn('[auth] getSession error:', e)
+        finish(null)
       }
     }
 
     init()
 
-    // Listen for auth changes (login/logout/OAuth callback)
+    // Listen for auth changes (login/logout/OAuth callback).
+    // Dedupe via applyUser so repeated IDENTICAL events don't re-render.
     if (!supabase) return
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(normalizeUser(session?.user ?? null))
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // CRITICAL: If a guest session exists, don't let Supabase auth events
+      // (INITIAL_SESSION, TOKEN_REFRESHED) nullify the guest user. Supabase
+      // fires INITIAL_SESSION with null when there's no Supabase session —
+      // which would kick a guest user back to the login screen.
+      const guest = loadGuest()
+      if (guest) {
+        // Only apply if the event brings a REAL Supabase user (e.g., after
+        // email login the guest was already cleared by signInWithEmail).
+        const supabaseUser = normalizeUser(session?.user ?? null)
+        if (supabaseUser) {
+          applyUser(supabaseUser)
+        }
+        // Otherwise: keep the guest. Don't nullify.
+        setLoading(false)
+        return
+      }
+
+      applyUser(normalizeUser(session?.user ?? null))
+      setLoading(false)
     })
 
     return () => {
       cancelled = true
       sub.subscription.unsubscribe()
     }
-  }, [])
+  }, [applyUser])
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
     clearGuest() // clear any guest session
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+    try {
+      const { error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Login timeout — coba lagi')),
+            10000
+          )
+        ),
+      ])
+      return { error }
+    } catch (e: any) {
+      return { error: { message: e?.message || 'Gagal masuk' } as any }
+    }
   }, [])
 
   const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
     clearGuest()
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    })
-    return { data, error }
+    try {
+      const { data, error } = await Promise.race([
+        supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Pendaftaran timeout — coba lagi')),
+            10000
+          )
+        ),
+      ])
+      return { data, error }
+    } catch (e: any) {
+      return { error: { message: e?.message || 'Gagal daftar' } as any }
+    }
   }, [])
 
   const signInAsGuest = useCallback((name?: string) => {
@@ -132,7 +212,10 @@ export function useAuth() {
       isGuest: true,
     }
     saveGuest(guestUser)
-    setUser(guestUser)
+    // Bypass dedupe: force-update ref + state together.
+    userIdRef.current = guestUser.id
+    setUserState(guestUser)
+    setLoading(false)
   }, [])
 
   const signOut = useCallback(async () => {
@@ -142,7 +225,9 @@ export function useAuth() {
     if (supabase) {
       await supabase.auth.signOut()
     }
-    setUser(null)
+    // Bypass dedupe: force-update ref + state together.
+    userIdRef.current = null
+    setUserState(null)
   }, [])
 
   return {

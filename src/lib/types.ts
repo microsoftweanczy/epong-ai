@@ -2,6 +2,17 @@
 
 export type Role = 'user' | 'assistant' | 'system'
 
+export interface Attachment {
+  id: string
+  type: 'image' | 'video' | 'file'
+  name: string
+  mimeType: string
+  /** base64 data URL for images/videos, or empty for text files */
+  dataUrl: string
+  /** for text files: extracted text content */
+  textContent?: string
+}
+
 export interface Conversation {
   id: string
   title: string
@@ -15,6 +26,7 @@ export interface ChatMessage {
   role: Role
   content: string
   createdAt: string
+  attachments?: Attachment[]
 }
 
 // Message shape sent to the AI providers
