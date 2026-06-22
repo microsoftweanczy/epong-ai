@@ -3,9 +3,10 @@ import type { ApiMessage } from './types'
 /**
  * AI provider abstraction.
  *
- * Primary: Deepseek (REDACTED)
- * Fallback 1: GLM via DashScope (built-in key)
- * Fallback 2: OpenRouter (optional, env-driven)
+ * Primary: DeepSeek-V3 via GitHub Models (models.github.ai)
+ * Fallback 1: Deepseek direct API (sk-5a7b...)
+ * Fallback 2: GLM via DashScope (built-in key)
+ * Fallback 3: OpenRouter (optional, env-driven)
  *
  * If ALL providers fail, returns an error message — no z-ai SDK fallback.
  * Each function returns the provider name so the UI can show which API was used.
@@ -14,12 +15,17 @@ import type { ApiMessage } from './types'
 const MAX_HISTORY = 20
 const ERROR_PREVIEW = 200
 
-// Deepseek — PRIMARY
+// GitHub Models — PRIMARY (DeepSeek-V3-0324)
+const GITHUB_MODELS_ENDPOINT = 'https://models.github.ai/inference'
+const GITHUB_MODEL = 'deepseek/DeepSeek-V3-0324'
+const GITHUB_TOKEN_FALLBACK = 'REDACTED'
+
+// Deepseek direct API — fallback 1
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1'
 const DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat'
 const DEEPSEEK_FALLBACK_KEY = 'REDACTED'
 
-// GLM via DashScope — fallback 1
+// GLM via DashScope — fallback 2
 const GLM_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 const GLM_DEFAULT_MODEL = 'qwen3.6-flash'
 const GLM_FALLBACK_KEY = 'sk-ws-H.IYYPHR.dM6s.MEUCID8hSB15TQhZO_RutoErcWE0dXcb5lmQKeeyc319DpGbAiEA4sHr-BtPdLPDyi6TBfqCUNREaPSpusiiUoRxFBDycWM'
@@ -28,6 +34,10 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const REQUEST_TIMEOUT_MS = 6000
 const STREAM_TIMEOUT_MS = 60_000
+
+function getGithubToken(): string {
+  return process.env.GITHUB_TOKEN || process.env.GITHUB_MODELS_TOKEN || GITHUB_TOKEN_FALLBACK
+}
 
 function getDeepseekKey(): string {
   return process.env.DEEPSEEK_API_KEY || DEEPSEEK_FALLBACK_KEY
@@ -65,7 +75,15 @@ export async function streamChat(
 ): Promise<ChatResult> {
   const trimmed = trimHistory(messages)
 
-  // Primary: Deepseek
+  // Primary: DeepSeek-V3 via GitHub Models
+  try {
+    await streamFromGithubModels(trimmed, onDelta)
+    return { success: true, provider: 'DeepSeek-V3 (GitHub)' }
+  } catch (e: any) {
+    console.error('[ai] GitHub Models stream failed:', e?.message)
+  }
+
+  // Fallback 1: Deepseek direct API
   try {
     await streamFromDeepseek(trimmed, onDelta)
     return { success: true, provider: 'Deepseek' }
@@ -73,7 +91,7 @@ export async function streamChat(
     console.error('[ai] Deepseek stream failed:', e?.message)
   }
 
-  // Fallback 1: GLM via DashScope
+  // Fallback 2: GLM via DashScope
   try {
     await streamFromGLM(trimmed, onDelta)
     return { success: true, provider: 'GLM' }
@@ -81,7 +99,7 @@ export async function streamChat(
     console.error('[ai] GLM stream failed:', e?.message)
   }
 
-  // Fallback 2: OpenRouter (optional)
+  // Fallback 3: OpenRouter (optional)
   if (process.env.OPENROUTER_API_KEY) {
     try {
       await streamFromOpenRouter(trimmed, onDelta)
@@ -91,11 +109,11 @@ export async function streamChat(
     }
   }
 
-  // All providers failed — no z-ai SDK fallback
+  // All providers failed
   return {
     success: false,
     provider: '',
-    error: 'Semua API sedang bermasalah. Deepseek (saldo tidak cukup), GLM (key tidak valid), OpenRouter (tidak dikonfigurasi). Silakan coba lagi nanti.',
+    error: 'Semua API sedang bermasalah. Coba lagi nanti.',
   }
 }
 
@@ -107,7 +125,15 @@ export async function completeChat(
 ): Promise<{ text: string; provider: string }> {
   const trimmed = trimHistory(messages)
 
-  // Primary: Deepseek
+  // Primary: DeepSeek-V3 via GitHub Models
+  try {
+    const text = await completeFromGithubModels(trimmed)
+    return { text, provider: 'DeepSeek-V3 (GitHub)' }
+  } catch (e: any) {
+    console.error('[ai] GitHub Models complete failed:', e?.message)
+  }
+
+  // Fallback 1: Deepseek direct API
   try {
     const text = await completeFromDeepseek(trimmed)
     return { text, provider: 'Deepseek' }
@@ -115,7 +141,7 @@ export async function completeChat(
     console.error('[ai] Deepseek complete failed:', e?.message)
   }
 
-  // Fallback 1: GLM via DashScope
+  // Fallback 2: GLM via DashScope
   try {
     const text = await completeFromGLM(trimmed)
     return { text, provider: 'GLM' }
@@ -176,7 +202,62 @@ function timeoutSignal(ms: number): AbortSignal {
   return AbortSignal.timeout(ms)
 }
 
-// ── Deepseek — PRIMARY ──
+// ── GitHub Models — PRIMARY (DeepSeek-V3-0324) ──
+// Uses the GitHub Models inference endpoint (OpenAI-compatible).
+
+async function streamFromGithubModels(
+  messages: ApiMessage[],
+  onDelta: (text: string) => void
+): Promise<void> {
+  const res = await fetch(`${GITHUB_MODELS_ENDPOINT}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getGithubToken()}`,
+    },
+    body: JSON.stringify({
+      model: GITHUB_MODEL,
+      messages,
+      stream: true,
+      max_tokens: 4096,
+      temperature: 1.0,
+      top_p: 1.0,
+    }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
+  })
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub Models ${res.status}: ${text.slice(0, ERROR_PREVIEW)}`)
+  }
+  await parseSSEStream(res.body, onDelta)
+}
+
+async function completeFromGithubModels(messages: ApiMessage[]): Promise<string> {
+  const res = await fetch(`${GITHUB_MODELS_ENDPOINT}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getGithubToken()}`,
+    },
+    body: JSON.stringify({
+      model: GITHUB_MODEL,
+      messages,
+      stream: false,
+      max_tokens: 800,
+      temperature: 1.0,
+      top_p: 1.0,
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS * 2),
+  })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`GitHub Models ${res.status}: ${t.slice(0, ERROR_PREVIEW)}`)
+  }
+  const data = await res.json()
+  return data?.choices?.[0]?.message?.content || ''
+}
+
+// ── Deepseek direct API — fallback 1 ──
 
 async function streamFromDeepseek(
   messages: ApiMessage[],
