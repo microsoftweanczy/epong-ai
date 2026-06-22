@@ -7,19 +7,48 @@ import type { ChatMessage } from '@/lib/types'
 interface Props {
   messages: ChatMessage[]
   streamingId: string | null
+  onRetry?: (messageId: string) => void
 }
 
-export function MessageList({ messages, streamingId }: Props) {
+export function MessageList({ messages, streamingId, onRetry }: Props) {
   const endRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const stickToBottomRef = useRef(true)
 
-  // Auto-scroll to bottom when new content arrives.
+  // Track whether the user is scrolled near the bottom.
+  // Only auto-scroll if they are — don't yank them down if they scrolled up to read.
   useEffect(() => {
-    const el = endRef.current
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const el = containerRef.current
+    if (!el) return
+    const onScroll = () => {
+      const distFromBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight
+      stickToBottomRef.current = distFromBottom < 120
     }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Auto-scroll to bottom when new content arrives — but ONLY if the user
+  // is already near the bottom (debounced via rAF to avoid per-chunk layout thrash).
+  useEffect(() => {
+    if (!stickToBottomRef.current) return
+    const el = endRef.current
+    if (!el) return
+    // Coalesce multiple streaming chunks into one scroll per animation frame.
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'auto', block: 'end' })
+    })
+    return () => cancelAnimationFrame(raf)
   }, [messages, streamingId])
+
+  // Find the last assistant message id — only that one can be retried.
+  const lastAssistantId = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return messages[i].id
+    }
+    return null
+  })()
 
   return (
     <div
@@ -32,6 +61,8 @@ export function MessageList({ messages, streamingId }: Props) {
             key={m.id}
             message={m}
             streaming={m.id === streamingId}
+            canRetry={m.id === lastAssistantId && m.role === 'assistant'}
+            onRetry={onRetry}
           />
         ))}
         <div ref={endRef} className="h-1" />

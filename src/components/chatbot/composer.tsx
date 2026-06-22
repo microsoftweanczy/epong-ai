@@ -7,10 +7,9 @@ interface Props {
   onSend: (text: string) => void
   onStop: () => void
   busy: boolean
-  disabled?: boolean
 }
 
-export function Composer({ onSend, onStop, busy, disabled }: Props) {
+export function Composer({ onSend, onStop, busy }: Props) {
   const [value, setValue] = useState('')
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -21,15 +20,6 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
     ta.style.height = '0px'
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
   }, [value])
-
-  // Auto-focus on mount so the mobile keyboard stands by immediately.
-  // Slight delay lets the page settle (iOS sometimes needs this).
-  useEffect(() => {
-    const t = setTimeout(() => {
-      taRef.current?.focus({ preventScroll: true })
-    }, 350)
-    return () => clearTimeout(t)
-  }, [])
 
   const submit = () => {
     const text = value.trim()
@@ -55,8 +45,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
             rows={1}
             placeholder="Tulis pesan untuk Epong AI…"
             enterKeyHint="send"
-            disabled={disabled}
-            className="max-h-36 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-[1.5] tracking-[-0.01em] text-slate-900 outline-none placeholder:text-slate-500 disabled:opacity-50 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-400"
+            className="max-h-36 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-[1.5] tracking-[-0.01em] text-slate-900 outline-none placeholder:text-slate-500 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-400"
           />
         </div>
         {busy ? (
@@ -70,7 +59,7 @@ export function Composer({ onSend, onStop, busy, disabled }: Props) {
         ) : (
           <button
             onClick={submit}
-            disabled={!value.trim() || disabled}
+            disabled={!value.trim()}
             aria-label="Kirim pesan"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0A84FF] to-[#0064D6] text-white shadow-lg shadow-[#0A84FF]/30 transition hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:shadow-none sm:h-12 sm:w-12"
           >

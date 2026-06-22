@@ -18,6 +18,39 @@ import type { ApiMessage } from './types'
 import { completeChat } from './ai-providers'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ZAI singleton — avoid recreating the SDK on every call
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _zaiInstance: any = null
+async function getZAI() {
+  if (_zaiInstance) return _zaiInstance
+  const ZAIModule = await import('z-ai-web-dev-sdk')
+  const ZAI = ZAIModule.default
+  _zaiInstance = await ZAI.create()
+  return _zaiInstance
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function findLastUser(messages: ApiMessage[]): ApiMessage | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i]
+  }
+  return null
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), ms)
+    ),
+  ])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Expanded regex fallback — catches common realtime-intention signals
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,41 +58,29 @@ const REALTIME_PATTERNS = [
   // Time references (Indonesian + English)
   /terbaru|terkini|hari ini|sekarang|saat ini|kini|baru saja|kemarin|minggu ini|tahun ini/i,
   /latest|today|current|recent|right now|yesterday|this week|this year|up to date/i,
-
   // News / updates
-  /berita|news|update|pengumuman|umum|broadcast/i,
-
+  /berita|news|update|pengumuman/i,
   // Financial / market data
   /harga|price|cuaca|weather|suhu|temperature|saham|stock|bitcoin|crypto|kurs|dollar|rupiah|nilai tukar|bunga|inflasi/i,
-
   // Sports / events
   /jadwal|schedule|result|hasil|skor|score|pertandingan|match|klasemen|standings|turnamen/i,
-
   // Trending / viral
   /trending|viral|populer|popular|hot topic/i,
-
   // Year mentions (current/recent years)
   /\b202[4-9]\b/i,
-
   // "What is happening" / current state
   /apa yang sedang|what.*happening|status terbaru|kondisi sekarang|perkembangan|progress/i,
-
   // People — "who is" / "siapa" (current identity, role, status)
   /\bsiapa\b.*presiden|\bsiapa\b.*menteri|\bsiapa\b.*pemain|\bsiapa\b.*artis/i,
   /who is|who.*current|who.*now|who.*today/i,
-
   // Places — "where is" (current location/status)
   /dimana.*sekarang|where.*now|where.*current/i,
-
   // Comparisons / best-of (need current data)
   /terbaik|termurah|termahal|terlaris|best|cheapest|most popular|top rated/i,
-
   // Statistics / numbers that change
   /berapa jumlah|berapa penduduk|how many|statistics|statistik|data terbaru/i,
-
   // Release / version / launch
   /rilis|release|launch|keluar|versi terbaru|update terbaru/i,
-
   // Live / ongoing
   /live|langsung|sedang berlangsung|ongoing/i,
 ]
@@ -107,7 +128,7 @@ Current date: ${new Date().toISOString().split('T')[0]}`
 async function detectIntentLLM(
   messages: ApiMessage[]
 ): Promise<IntentResult | null> {
-  const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+  const lastUser = findLastUser(messages)
   if (!lastUser) return null
 
   try {
@@ -119,13 +140,7 @@ async function detectIntentLLM(
       },
     ]
 
-    const raw = await Promise.race([
-      completeChat(intentMessages),
-      new Promise<string>((resolve) =>
-        setTimeout(() => resolve(''), INTENT_TIMEOUT_MS)
-      ),
-    ])
-
+    const raw = await withTimeout(completeChat(intentMessages), INTENT_TIMEOUT_MS)
     if (!raw) return null
 
     // Extract JSON from response (handle markdown-wrapped or plain)
@@ -144,12 +159,13 @@ async function detectIntentLLM(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Web search + page reading via z-ai SDK
+// Web search + page reading via z-ai SDK (with retry)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SEARCH_TIMEOUT_MS = 6000
 const PAGE_READ_TIMEOUT_MS = 5000
 const MAX_PAGES_TO_READ = 2
+const SEARCH_RETRIES = 2
 
 interface SearchResult {
   url: string
@@ -167,52 +183,45 @@ interface PageContent {
 }
 
 async function performWebSearch(query: string): Promise<SearchResult[]> {
-  try {
-    const ZAIModule = await import('z-ai-web-dev-sdk')
-    const ZAI = ZAIModule.default
-    const zai = await ZAI.create()
-    const results = await Promise.race([
-      zai.functions.invoke('web_search', { query, num: 5 }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('search timeout')),
-          SEARCH_TIMEOUT_MS
-        )
-      ),
-    ])
-    if (!Array.isArray(results)) return []
-    return results as SearchResult[]
-  } catch {
-    return []
+  for (let attempt = 1; attempt <= SEARCH_RETRIES; attempt++) {
+    try {
+      const zai = await getZAI()
+      const results = await withTimeout(
+        zai.functions.invoke('web_search', { query, num: 5 }),
+        SEARCH_TIMEOUT_MS
+      )
+      if (Array.isArray(results) && results.length > 0) {
+        return results as SearchResult[]
+      }
+      // Empty results — retry once with a simplified query
+      if (attempt < SEARCH_RETRIES) {
+        const simplified = query.slice(0, 60).trim()
+        if (simplified && simplified !== query) {
+          continue
+        }
+      }
+      return []
+    } catch {
+      if (attempt >= SEARCH_RETRIES) return []
+      // Wait briefly before retry
+      await new Promise((r) => setTimeout(r, 300))
+    }
   }
+  return []
 }
 
 async function readPage(url: string): Promise<PageContent | null> {
   try {
-    const ZAIModule = await import('z-ai-web-dev-sdk')
-    const ZAI = ZAIModule.default
-    const zai = await ZAI.create()
-    const result: any = await Promise.race([
+    const zai = await getZAI()
+    const result: any = await withTimeout(
       zai.functions.invoke('page_reader', { url }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('page read timeout')),
-          PAGE_READ_TIMEOUT_MS
-        )
-      ),
-    ])
+      PAGE_READ_TIMEOUT_MS
+    )
     const data = result?.data || result
     if (!data) return null
     // Strip HTML tags to get plain text, cap length
-    const text = (data.html || data.text || '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 2000)
+    const text = stripHtml(data.html || data.text || '').slice(0, 2000)
+    if (text.length < 50) return null
     return {
       url,
       title: data.title || '',
@@ -222,6 +231,21 @@ async function readPage(url: string): Promise<PageContent | null> {
   } catch {
     return null
   }
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -238,9 +262,19 @@ export interface RealtimeContext {
   failed: boolean
 }
 
+const EMPTY_CTX: RealtimeContext = {
+  performed: false,
+  query: '',
+  searchResults: [],
+  pageContents: [],
+  sourceCount: 0,
+  pagesRead: 0,
+  failed: false,
+}
+
 function buildSearchQuery(userMessage: string, intentQuery: string): string {
   // Prefer the LLM-generated query; fall back to the user's message (truncated)
-  const q = intentQuery || userMessage
+  const q = (intentQuery || userMessage).trim()
   // Add current year if not present (helps get recent results)
   const year = new Date().getFullYear()
   if (!q.includes(String(year)) && !q.includes(String(year - 1))) {
@@ -252,18 +286,8 @@ function buildSearchQuery(userMessage: string, intentQuery: string): string {
 export async function gatherRealtimeContext(
   messages: ApiMessage[]
 ): Promise<RealtimeContext> {
-  const lastUser = [...messages].reverse().find((m) => m.role === 'user')
-  if (!lastUser) {
-    return {
-      performed: false,
-      query: '',
-      searchResults: [],
-      pageContents: [],
-      sourceCount: 0,
-      pagesRead: 0,
-      failed: false,
-    }
-  }
+  const lastUser = findLastUser(messages)
+  if (!lastUser) return { ...EMPTY_CTX }
 
   // Step 1: Detect intent (LLM primary, regex fallback)
   let intent: IntentResult | null = null
@@ -273,32 +297,24 @@ export async function gatherRealtimeContext(
     intent = null
   }
 
-  // Fallback: regex detection if LLM didn't decide
-  let needRealtime = intent?.needRealtime ?? false
-  let query = intent?.query || ''
+  let needRealtime: boolean
+  let query: string
 
-  if (!intent) {
+  if (intent) {
+    needRealtime = intent.needRealtime
+    query = intent.query
+  } else {
     // LLM failed entirely — use regex
     needRealtime = regexNeedsSearch(lastUser.content)
     query = lastUser.content
   }
 
-  if (!needRealtime) {
-    return {
-      performed: false,
-      query: '',
-      searchResults: [],
-      pageContents: [],
-      sourceCount: 0,
-      pagesRead: 0,
-      failed: false,
-    }
-  }
+  if (!needRealtime) return { ...EMPTY_CTX }
 
   // Step 2: Build optimal search query
   const finalQuery = buildSearchQuery(lastUser.content, query)
 
-  // Step 3: Perform web search
+  // Step 3: Perform web search (with retry)
   const searchResults = await performWebSearch(finalQuery)
 
   if (searchResults.length === 0) {
@@ -321,7 +337,7 @@ export async function gatherRealtimeContext(
 
   const pageContents = (
     await Promise.all(topUrls.map((url) => readPage(url)))
-  ).filter((p): p is PageContent => p !== null && p.text.length > 50)
+  ).filter((p): p is PageContent => p !== null)
 
   return {
     performed: true,
@@ -355,9 +371,7 @@ export function buildRealtimePrompt(ctx: RealtimeContext): string {
   // Search result snippets (always included)
   parts.push('--- Search Results ---')
   ctx.searchResults.forEach((r, i) => {
-    parts.push(
-      `[${i + 1}] ${r.name}`
-    )
+    parts.push(`[${i + 1}] ${r.name}`)
     if (r.snippet) parts.push(`    ${r.snippet}`)
     if (r.date) parts.push(`    Date: ${r.date}`)
     parts.push(`    Source: ${r.url}`)

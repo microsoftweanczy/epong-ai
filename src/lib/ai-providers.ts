@@ -20,6 +20,7 @@ const GLM_DEFAULT_MODEL = 'glm-4.5-flash'
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const REQUEST_TIMEOUT_MS = 6000
+const STREAM_TIMEOUT_MS = 60_000 // abort streaming fetch if no response in 60s
 
 // ── Public API ──
 
@@ -150,6 +151,7 @@ async function streamFromGLM(
       Authorization: `Bearer ${process.env.GLM_API_KEY}`,
     },
     body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
@@ -194,6 +196,7 @@ async function streamFromOpenRouter(
       'X-Title': 'Epong AI',
     },
     body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')

@@ -42,7 +42,7 @@ export default function ChatApp() {
 
   // keep theme in sync
   useThemeSync()
-  const { prefs, memory, loadMemory, setUserId, addMemory } =
+  const { prefs, memory, loadMemory, setUserId, addMemory, behaviorProfile } =
     useSettings()
 
   // sync settings userId + load memory when user changes
@@ -78,7 +78,7 @@ export default function ChatApp() {
     else setLoadingConvos(false)
   }, [refreshConvos, userId])
 
-  // ---- load messages when active changes ----
+  // ---- load messages when active changes (with timeout — never hang) ----
   useEffect(() => {
     if (!activeId || !store) {
       setMessages([])
@@ -92,6 +92,14 @@ export default function ChatApp() {
     }
     let alive = true
     setLoadingMsgs(true)
+    // Safety net: if getMessages hangs (e.g. Supabase unreachable),
+    // clear loading after 8s so the UI never gets stuck.
+    const timeout = setTimeout(() => {
+      if (alive) {
+        setLoadingMsgs(false)
+        if (messages.length === 0) setMessages([])
+      }
+    }, 8000)
     store
       .getMessages(activeId)
       .then((msgs) => {
@@ -99,10 +107,14 @@ export default function ChatApp() {
       })
       .catch((e) => console.error(e))
       .finally(() => {
-        if (alive) setLoadingMsgs(false)
+        if (alive) {
+          clearTimeout(timeout)
+          setLoadingMsgs(false)
+        }
       })
     return () => {
       alive = false
+      clearTimeout(timeout)
     }
   }, [activeId, store])
 
@@ -115,18 +127,13 @@ export default function ChatApp() {
       setSidebarOpen(false)
       return
     }
-    if (!store) return
-    try {
-      const conv = await store.createConversation(NEW_CHAT_TITLE)
-      setConversations((prev) => [conv, ...prev])
-      skipNextLoad.current = true
-      setActiveId(conv.id)
-      setMessages([])
-      setSidebarOpen(false)
-    } catch (e) {
-      console.error(e)
-    }
-  }, [store])
+    // Don't create a conversation row yet — just clear the active view so
+    // the welcome screen shows. The conversation is created lazily when
+    // the user actually sends their first message (see handleSend).
+    setActiveId(null)
+    setMessages([])
+    setSidebarOpen(false)
+  }, [])
 
   // ---- select conversation ----
   const handleSelect = useCallback(
@@ -220,7 +227,6 @@ export default function ChatApp() {
       // persist user message (skip in incognito)
       if (!incognito) {
         store!.addMessage(convId, 'user', text).catch((e) => console.error(e))
-        store!.touchConversation(convId).catch(() => {})
       }
 
       // build API payload from current messages + the new user text
@@ -240,6 +246,8 @@ export default function ChatApp() {
           body: JSON.stringify({
             messages: apiMessages,
             prefs,
+            memory,
+            behaviorProfile,
           }),
           signal: controller.signal,
         })
@@ -289,10 +297,6 @@ export default function ChatApp() {
                 )
               }
               if (json.content) {
-                // If first content chunk, replace the "searching" placeholder
-                if (accumulated === '' && json.searchPerformed === undefined) {
-                  // already showing search text, replace it
-                }
                 accumulated += json.content
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -308,12 +312,12 @@ export default function ChatApp() {
 
         // persist the assistant reply (skip in incognito)
         if (!incognito) {
-          await store!.addMessage(convId, 'assistant', accumulated || '_(no response)_')
-          store!.touchConversation(convId).catch(() => {})
+          const replyText = accumulated || '_(no response)_'
+          await store!.addMessage(convId, 'assistant', replyText)
           refreshConvos()
 
           // ── Auto-extract memories from this conversation (background, no block) ──
-          const allMsgs: ApiMessage[] = [...messages, userMsg, { role: 'assistant', content: accumulated }].map((m) => ({
+          const allMsgs: ApiMessage[] = [...messages, userMsg, { role: 'assistant' as const, content: accumulated }].map((m) => ({
             role: m.role,
             content: m.content,
           }))
@@ -348,12 +352,172 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos, prefs, memory, addMemory]
+    [activeId, messages, store, refreshConvos, prefs, memory, addMemory, behaviorProfile]
   )
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort()
   }, [])
+
+  // ---- retry: regenerate the last assistant response ----
+  const handleRetry = useCallback(
+    (assistantMsgId: string) => {
+      // Find the target assistant message + the user message that preceded it
+      const idx = messages.findIndex((m) => m.id === assistantMsgId)
+      if (idx === -1) return
+      // Walk back to find the last user message before this assistant message
+      let userIdx = -1
+      for (let i = idx - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+          userIdx = i
+          break
+        }
+      }
+      if (userIdx === -1) return
+
+      // Rebuild the message history UP TO (but not including) the assistant
+      // message being retried. Then remove the old assistant message + re-send.
+      const historyBefore = messages.slice(0, idx) // includes the user msg
+      const userText = messages[userIdx].content
+
+      // Remove the old assistant message from UI
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId))
+
+      // Re-invoke handleSend with the same user text, but using the existing
+      // history (so handleSend doesn't re-add the user message).
+      // We accomplish this by temporarily swapping `messages` semantics:
+      // handleSend appends userMsg to [...messages], so we pass history
+      // EXCLUDING the last user message (handleSend will re-add it).
+      // However, handleSend reads `messages` from closure — so we call a
+      // minimal inline version here for the retry path.
+      void retryStream(userText, historyBefore)
+    },
+    [messages]
+  )
+
+  // Internal: stream a retry. Reuses the same logic as handleSend but with
+  // a pre-built message history (the retried user msg is already in history).
+  const retryStream = useCallback(
+    async (text: string, history: ChatMessage[]) => {
+      const incognito = useIncognito.getState().enabled
+      const convId = activeId || 'incognito-session'
+
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        conversationId: convId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, assistantMsg])
+      setStreamingId(assistantMsg.id)
+
+      const apiMessages: ApiMessage[] = history.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }))
+
+      const controller = new AbortController()
+      abortRef.current = controller
+      let accumulated = ''
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: apiMessages,
+            prefs,
+            memory,
+            behaviorProfile,
+          }),
+          signal: controller.signal,
+        })
+        if (!res.ok || !res.body) {
+          throw new Error(`Request failed (${res.status})`)
+        }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed.startsWith('data:')) continue
+            const payload = trimmed.slice(5).trim()
+            if (payload === '[DONE]') continue
+            try {
+              const json = JSON.parse(payload)
+              if (json.error) {
+                accumulated += `\n\n*(Error: ${json.error})*`
+                break
+              }
+              if (json.searchPerformed) {
+                const sources = json.sources || 0
+                const pages = json.pagesRead || 0
+                const query = json.query ? `: "${json.query}"` : ''
+                const searchMsg =
+                  pages > 0
+                    ? `🔍 Mencari di ${sources} sumber, membaca ${pages} halaman${query}...`
+                    : sources > 0
+                    ? `🔍 Mencari di ${sources} sumber${query}...`
+                    : `🔍 Mencari informasi terbaru di internet${query}...`
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? { ...m, content: searchMsg }
+                      : m
+                  )
+                )
+              }
+              if (json.content) {
+                accumulated += json.content
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? { ...m, content: accumulated }
+                      : m
+                  )
+                )
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        // persist the new assistant reply
+        if (!incognito && store && convId !== 'incognito-session') {
+          await store.addMessage(convId, 'assistant', accumulated || '_(no response)_')
+          refreshConvos()
+        }
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          if (!accumulated) {
+            setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id))
+          } else if (!incognito && store && convId !== 'incognito-session') {
+            store.addMessage(convId, 'assistant', accumulated).catch(() => {})
+          }
+        } else {
+          console.error(e)
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsg.id
+                ? { ...m, content: `*(Terjadi kesalahan: ${e.message})*` }
+                : m
+            )
+          )
+        }
+      } finally {
+        setStreamingId(null)
+        abortRef.current = null
+      }
+    },
+    [activeId, store, refreshConvos, prefs, memory, behaviorProfile]
+  )
 
   const activeConv = conversations.find((c) => c.id === activeId) || null
   const showWelcome = !activeId && !loadingConvos && messages.length === 0
@@ -444,7 +608,11 @@ export default function ChatApp() {
             </div>
           ) : (
             <>
-              <MessageList messages={messages} streamingId={streamingId} />
+              <MessageList
+                messages={messages}
+                streamingId={streamingId}
+                onRetry={handleRetry}
+              />
               {loadingMsgs && messages.length === 0 && (
                 <div className="flex items-center justify-center py-10 text-sm text-slate-400">
                   Memuat obrolan…

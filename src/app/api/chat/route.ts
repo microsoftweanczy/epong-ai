@@ -5,7 +5,7 @@ import {
   gatherRealtimeContext,
   buildRealtimePrompt,
 } from '@/lib/realtime'
-import type { Preferences } from '@/lib/settings'
+import type { Preferences, MemoryNote } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,8 +19,15 @@ export const maxDuration = 60
  *   data: [DONE]\n\n
  */
 
+interface ChatRequestBody {
+  messages?: ApiMessage[]
+  prefs?: Preferences | null
+  memory?: MemoryNote[]
+  behaviorProfile?: string
+}
+
 export async function POST(req: NextRequest) {
-  let body: { messages?: ApiMessage[]; prefs?: Preferences | null }
+  let body: ChatRequestBody
   try {
     body = await req.json()
   } catch {
@@ -28,11 +35,13 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const systemInstruction = buildInstruction(body.prefs)
+  const systemInstruction = buildInstruction(
+    body.prefs,
+    body.memory,
+    body.behaviorProfile
+  )
 
   // ── Read user intention: decide if realtime web data is needed ──
-  // Uses LLM-based intent detection (primary) with regex fallback.
-  // Runs search + optional page reading in parallel when needed.
   const realtimeCtx = await gatherRealtimeContext(incoming)
   const realtimePrompt = buildRealtimePrompt(realtimeCtx)
 
@@ -40,9 +49,10 @@ export async function POST(req: NextRequest) {
     ? `${systemInstruction}${realtimePrompt}`
     : systemInstruction
 
+  // Note: streamChat trims history internally (MAX_HISTORY=20) — no need to slice here.
   const messages: ApiMessage[] = [
     { role: 'system', content: fullSystem },
-    ...incoming.slice(-20),
+    ...incoming,
   ]
 
   const encoder = new TextEncoder()
@@ -84,8 +94,20 @@ export async function POST(req: NextRequest) {
   })
 }
 
-function buildInstruction(prefs?: Preferences | null): string {
-  const p = prefs || {}
+const DEFAULT_PREFS: Preferences = {
+  tone: 'santai',
+  verbosity: 'seimbang',
+  humor: 'sedikit',
+  empathy: true,
+  critical: true,
+}
+
+function buildInstruction(
+  prefs?: Preferences | null,
+  memory?: MemoryNote[],
+  behaviorProfile?: string
+): string {
+  const p: Preferences = prefs ?? DEFAULT_PREFS
   const today = new Date().toISOString().split('T')[0]
   const parts: string[] = [
     'You are Epong AI, a helpful AI assistant built by Wensy Corp (Epong) — a handsome guy from Mbodong and Waemata, Labuan Bajo.',
@@ -95,6 +117,26 @@ function buildInstruction(prefs?: Preferences | null): string {
     'When you use web search results, cite sources naturally (e.g., "menurut [1]" or "berdasarkan sumber dari detik.com"). Be transparent that the info came from a web search.',
     'If the user asks about something current but you don\'t have search results, honestly say you don\'t have the latest info rather than guessing.',
   ]
+
+  // ── Inject user memory (facts the AI should remember) ──
+  if (memory && memory.length > 0) {
+    const memoryText = memory
+      .map(
+        (m) =>
+          `- [${m.category}] ${m.content}`
+      )
+      .join('\n')
+    parts.push(
+      `\n=== THINGS YOU REMEMBER ABOUT THE USER ===\n${memoryText}\nUse this context naturally. Don't recite it back unless relevant.`
+    )
+  }
+
+  // ── Inject behavior profile ──
+  if (behaviorProfile && behaviorProfile.trim()) {
+    parts.push(
+      `\n=== USER INTERACTION PROFILE ===\n${behaviorProfile.trim()}\nAdapt your style to match.`
+    )
+  }
 
   const toneMap: Record<string, string> = {
     santai: 'Style: casual and friendly. Use "kamu".',

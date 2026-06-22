@@ -29,7 +29,7 @@ function applyThemeClass(resolved: 'light' | 'dark') {
 export const useTheme = create<ThemeState>()(
   persist(
     (set) => ({
-      mode: 'system',
+      mode: 'light',
       setMode: (m) => {
         const resolved =
           m === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : m

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import type { ApiMessage, MemoryNote } from '@/lib/types'
+import type { ApiMessage } from '@/lib/types'
+import type { MemoryNote } from '@/lib/settings'
 import { completeChat } from '@/lib/ai-providers'
 
 export const runtime = 'nodejs'

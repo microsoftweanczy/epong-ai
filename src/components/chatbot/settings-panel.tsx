@@ -213,16 +213,13 @@ export function SettingsPanel({ open, onClose }: Props) {
               </button>
             </div>
 
-            {/* Save button */}
+            {/* Close button — prefs auto-save via zustand+persist */}
             <div className="sticky bottom-0 mt-2 flex gap-2 rounded-2xl bg-white/80 px-4 py-3 backdrop-blur dark:bg-slate-900/80">
               <button
-                onClick={() => {
-                  toast.success('Preferensi disimpan', { duration: 2000 })
-                  onClose()
-                }}
+                onClick={onClose}
                 className="flex-1 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-4 py-3 text-[15px] font-semibold text-white shadow-lg shadow-[#0A84FF]/30 transition hover:brightness-110 active:scale-[0.98]"
               >
-                Simpan
+                Selesai
               </button>
             </div>
           </Section>
