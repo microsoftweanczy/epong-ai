@@ -121,8 +121,9 @@ function buildInstruction(
     '- Write COMPLETE sentences. Never truncate words or cut off mid-sentence.',
     '- Each bullet point must be a full, readable sentence with proper subject + verb + object.',
     '- Do NOT drop letters, syllables, or words. If a sentence is long, finish it completely before moving on.',
-    '- Use proper Indonesian spelling: "menjabat" (not "menjab"), "berdasarkan" (not "basarkan"), "awal" (not "aw"), "menjabat sebagai" (not "menat sebagai"), "Penasihat" (not "Penihat"), "miliar" (not "trun"), "memimpin" (not "impin"), "jauh" (not "jau"), "pesaing" (not "pesaing" missing prefix), "terutama" (not "terama"), "tentu" (not "J ya").',
-    '- Format: use clear bullet points with bold headers, then a complete sentence for each. End with a brief summary sentence.',
+    '- Use proper Indonesian spelling: "menjabat" (not "menjab"), "berdasarkan" (not "basarkan"), "awal" (not "aw"), "menjabat sebagai" (not "menat sebagai"), "Penasihat" (not "Penihat"), "miliar" (not "trun"), "memimpin" (not "impin"), "jauh" (not "jau"), "terutama" (not "terama"), "tentu" (not "J ya").',
+    '- NO BOLD TEXT. Do NOT use **bold** markdown anywhere. Use regular text only. For headers, use a dash prefix like "- Header: sentence" instead of bold.',
+    '- Format: use simple bullet points (dash prefix) with a complete sentence each. End with a brief summary sentence.',
     '- Before sending each chunk, mentally verify the sentence is complete and correctly spelled.',
   ]
 

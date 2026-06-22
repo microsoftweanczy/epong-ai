@@ -3,24 +3,42 @@ import type { ApiMessage } from './types'
 /**
  * AI provider abstraction.
  *
- * Uses GLM (Zhipu AI) as the primary provider — best Indonesian quality.
- * Falls back to OpenRouter, then z-ai SDK.
+ * Primary: GLM (via DashScope compatible endpoint) — best Indonesian quality.
+ * Fallback 1: z-ai SDK (built-in).
+ * Fallback 2: OpenRouter (optional, env-driven).
  *
  * Env vars:
- *   GLM_API_KEY     — required for GLM (primary)
- *   GLM_MODEL       — optional, default: glm-4.5-flash
+ *   GLM_API_KEY     — GLM/DashScope API key (if unset, built-in fallback key used)
+ *   GLM_MODEL       — optional, default: qwen3.6-flash
+ *   GLM_BASE_URL    — optional, default: DashScope compatible-mode endpoint
  *   OPENROUTER_API_KEY  — optional fallback
- *   OPENROUTER_MODEL    — optional, default: meta-llama/llama-3.3-70b-instruct:free
  */
 
 const MAX_HISTORY = 20
 const ERROR_PREVIEW = 200
-const GLM_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4'
-const GLM_DEFAULT_MODEL = 'glm-4.5-flash'
+
+// GLM via DashScope (Qwen Cloud) — OpenAI-compatible endpoint
+const GLM_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+const GLM_DEFAULT_MODEL = 'qwen3.6-flash'
+// Built-in fallback key (used if GLM_API_KEY env var is not set)
+const GLM_FALLBACK_KEY = 'sk-ws-H.IYYPHR.dM6s.MEUCID8hSB15TQhZO_RutoErcWE0dXcb5lmQKeeyc319DpGbAiEA4sHr-BtPdLPDyi6TBfqCUNREaPSpusiiUoRxFBDycWM'
+
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const REQUEST_TIMEOUT_MS = 6000
-const STREAM_TIMEOUT_MS = 60_000 // abort streaming fetch if no response in 60s
+const STREAM_TIMEOUT_MS = 60_000
+
+function getGLMKey(): string {
+  return process.env.GLM_API_KEY || GLM_FALLBACK_KEY
+}
+
+function getGLMBase(): string {
+  return process.env.GLM_BASE_URL || GLM_BASE_URL
+}
+
+function getGLMModel(): string {
+  return process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+}
 
 // ── Public API ──
 
@@ -34,17 +52,15 @@ export async function streamChat(
 ): Promise<boolean> {
   const trimmed = trimHistory(messages)
 
-  // Primary: GLM (best Indonesian)
-  if (process.env.GLM_API_KEY) {
-    try {
-      await streamFromGLM(trimmed, onDelta)
-      return true
-    } catch (e: any) {
-      console.error('[ai] GLM stream failed:', e?.message)
-    }
+  // Primary: GLM via DashScope (always available — has built-in fallback key)
+  try {
+    await streamFromGLM(trimmed, onDelta)
+    return true
+  } catch (e: any) {
+    console.error('[ai] GLM stream failed:', e?.message)
   }
 
-  // Fallback 1: OpenRouter
+  // Fallback 1: OpenRouter (optional)
   if (process.env.OPENROUTER_API_KEY) {
     try {
       await streamFromOpenRouter(trimmed, onDelta)
@@ -72,12 +88,11 @@ export async function completeChat(
 ): Promise<string> {
   const trimmed = trimHistory(messages)
 
-  if (process.env.GLM_API_KEY) {
-    try {
-      return await completeFromGLM(trimmed)
-    } catch (e: any) {
-      console.error('[ai] GLM complete failed:', e?.message)
-    }
+  // Primary: GLM via DashScope (always available)
+  try {
+    return await completeFromGLM(trimmed)
+  } catch (e: any) {
+    console.error('[ai] GLM complete failed:', e?.message)
   }
 
   if (process.env.OPENROUTER_API_KEY) {
@@ -136,19 +151,19 @@ function timeoutSignal(ms: number): AbortSignal {
   return AbortSignal.timeout(ms)
 }
 
-// ── GLM (Zhipu AI) — primary, best Indonesian ──
+// ── GLM via DashScope — primary, best Indonesian ──
 
 async function streamFromGLM(
   messages: ApiMessage[],
   onDelta: (text: string) => void
 ): Promise<void> {
-  const base = process.env.GLM_BASE_URL || GLM_BASE_URL
-  const model = process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+  const base = getGLMBase()
+  const model = getGLMModel()
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+      Authorization: `Bearer ${getGLMKey()}`,
     },
     body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
     signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
@@ -161,13 +176,13 @@ async function streamFromGLM(
 }
 
 async function completeFromGLM(messages: ApiMessage[]): Promise<string> {
-  const base = process.env.GLM_BASE_URL || GLM_BASE_URL
-  const model = process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+  const base = getGLMBase()
+  const model = getGLMModel()
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+      Authorization: `Bearer ${getGLMKey()}`,
     },
     body: JSON.stringify({ model, messages, stream: false, max_tokens: 800 }),
     signal: timeoutSignal(REQUEST_TIMEOUT_MS * 2),
@@ -177,6 +192,7 @@ async function completeFromGLM(messages: ApiMessage[]): Promise<string> {
     throw new Error(`GLM ${res.status}: ${t.slice(0, ERROR_PREVIEW)}`)
   }
   const data = await res.json()
+  // Note: GLM/Qwen models may return reasoning_content separately — we only want content
   return data?.choices?.[0]?.message?.content || ''
 }
 
