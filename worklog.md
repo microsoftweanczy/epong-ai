@@ -313,3 +313,41 @@ Stage Summary:
 - Loading screen stuck FIXED: SW controllerchange auto-reload breaks the stale-HTML loop; instant auth finish when no Supabase; 4s timeout as safety net.
 - Stuck in login screen FIXED: onAuthStateChange no longer kicks guests; login button has 10s timeout; login screen shows guest-only mode when Supabase isn't configured.
 - App works in three scenarios: (1) no Supabase → guest-only mode, (2) Supabase configured → full email + guest, (3) stale browser SW → auto-recovers via controllerchange reload.
+
+---
+Task ID: 18
+Agent: main
+Task: Read user intention when realtime/current/latest information is needed
+
+Work Log:
+- Created src/lib/realtime.ts — a two-tier intent detection + search module:
+  * PRIMARY: LLM-based intent detection. Asks the AI to classify whether the user's message needs realtime web data and to generate an optimal search query. Returns JSON {needRealtime, query, reason}. 4s timeout.
+  * FALLBACK: Expanded regex patterns (15 categories) if the LLM call fails/times out. Covers: time references (terbaru/hari ini/latest/today), news, financial/market data (harga/saham/bitcoin/kurs), sports/events, trending/viral, year mentions, "what is happening", people ("siapa presiden"/"who is"), places ("dimana sekarang"), comparisons (terbaik/termurah/best), statistics, releases/versions, live/ongoing.
+  * Web search via z-ai SDK's web_search function (5 results, 6s timeout).
+  * Optional page reading via page_reader for top 2 results (5s timeout each, parallel). Strips HTML, caps text at 2000 chars.
+  * buildRealtimePrompt() assembles search snippets + full page content into a system-prompt addition with source citations [1], [2], etc. and current date.
+
+- Updated src/app/api/chat/route.ts:
+  * Replaced the old regex-only needsWebSearch + quickWebSearch with gatherRealtimeContext().
+  * Sends {searchPerformed, sources, pagesRead, query} to the frontend so the 🔍 indicator shows the actual search query.
+  * Updated system instruction: now prominently includes today's date, instructs the AI to cite sources by number ([1], [2]), to trust realtime data over training data for time-sensitive topics, and to honestly say "I don't have the latest info" if no search results are available rather than guessing.
+
+- Updated src/components/chatbot/chat-app.tsx:
+  * The "searching..." indicator now displays the actual search query: `🔍 Mencari di 5 sumber, membaca 1 halaman: "presiden Indonesia sekarang 2024 2026"...`
+
+- Verified with 5 test cases via curl + Agent Browser:
+  1. "Siapa presiden Indonesia sekarang?" → SEARCH triggered ✓. AI replied "Berdasarkan pencarian web terkini presiden Indonesia sekarang Prabowo Subianto" (correct, cites web search).
+  2. "Apa itu fotosintesis?" → NO search ✓. AI answered directly from training data (static knowledge).
+  3. "Berapa harga Bitcoin hari ini?" → SEARCH triggered ✓. 5 sources, 1 page read, query "harga Bitcoin hari ini 22 Juni 2026".
+  4. "Halo, apa kabar?" → NO search ✓. Instant casual reply.
+  5. "Berita terbaru tentang teknologi AI?" → SEARCH triggered ✓. AI cited sources [1], [2], [4], [5] with current date 22 Juni 2026.
+- Browser test confirmed: the 🔍 searching indicator appears with the query, then the AI response streams in citing web sources. No console errors.
+- Lint clean. Dev log all 200s.
+
+Stage Summary:
+- The AI now intelligently reads the user's intention to decide when realtime web data is needed.
+- Two-tier detection: LLM-based (primary, understands nuance like "siapa presiden" = current role) + expanded regex (fallback, 15 pattern categories).
+- When search is needed: generates an optimized query, searches 5 sources, optionally reads top 2 pages for deeper context, includes everything in the system prompt with source citations.
+- When NOT needed (static knowledge, greetings, opinions): answers instantly without searching — saves time and API quota.
+- The frontend shows the actual search query in the 🔍 indicator so users know what's being looked up.
+- AI responses cite sources by number ([1], [2]) and mention the current date for time-sensitive topics.

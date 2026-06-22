@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
 import { streamChat } from '@/lib/ai-providers'
+import {
+  gatherRealtimeContext,
+  buildRealtimePrompt,
+} from '@/lib/realtime'
 import type { Preferences } from '@/lib/settings'
 
 export const runtime = 'nodejs'
@@ -15,38 +19,6 @@ export const maxDuration = 60
  *   data: [DONE]\n\n
  */
 
-// Keywords that suggest the user needs real-time data
-const REALTIME_PATTERNS = [
-  /terbaru|terkini|hari ini|sekarang|saat ini|kini|baru saja|kemarin/i,
-  /latest|today|current|recent|right now|yesterday/i,
-  /berita|news|update|pengumuman/i,
-  /harga|price|cuaca|weather|saham|stock|bitcoin|crypto|kurs/i,
-  /jadwal|schedule|result|hasil|skor|score|pertandingan/i,
-  /trending|viral|populer/i,
-  /\b202[4-9]\b/i,
-  /apa yang sedang|what.*happening/i,
-  /status terbaru|kondisi sekarang|perkembangan/i,
-]
-
-function needsWebSearch(text: string): boolean {
-  return REALTIME_PATTERNS.some((p) => p.test(text))
-}
-
-async function quickWebSearch(query: string): Promise<string> {
-  try {
-    const ZAIModule = await import('z-ai-web-dev-sdk')
-    const ZAI = ZAIModule.default
-    const zai = await ZAI.create()
-    const results = await zai.functions.invoke('web_search', { query, num: 3 })
-    if (!Array.isArray(results) || results.length === 0) return ''
-    return results
-      .map((r: any, i: number) => `${i + 1}. ${r.name}\n   ${r.snippet || ''}\n   Sumber: ${r.url}`)
-      .join('\n\n')
-  } catch {
-    return ''
-  }
-}
-
 export async function POST(req: NextRequest) {
   let body: { messages?: ApiMessage[]; prefs?: Preferences | null }
   try {
@@ -58,27 +30,15 @@ export async function POST(req: NextRequest) {
   const incoming = Array.isArray(body.messages) ? body.messages : []
   const systemInstruction = buildInstruction(body.prefs)
 
-  // Check if web search needed — but run it FAST (single query, 3 results, no page reading)
-  const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
-  let searchContext = ''
-  let searchFailed = false
+  // ── Read user intention: decide if realtime web data is needed ──
+  // Uses LLM-based intent detection (primary) with regex fallback.
+  // Runs search + optional page reading in parallel when needed.
+  const realtimeCtx = await gatherRealtimeContext(incoming)
+  const realtimePrompt = buildRealtimePrompt(realtimeCtx)
 
-  if (lastUserMsg && needsWebSearch(lastUserMsg.content)) {
-    searchContext = await Promise.race([
-      quickWebSearch(lastUserMsg.content),
-      new Promise<string>((resolve) => setTimeout(() => resolve(''), 5000)),
-    ])
-    if (!searchContext) searchFailed = true
-  }
-
-  let fullSystem: string
-  if (searchContext) {
-    fullSystem = `${systemInstruction}\n\nREAL-TIME WEB SEARCH RESULTS:\n${searchContext}\n\nUse this data. Cite sources. Current date: ${new Date().toISOString().split('T')[0]}`
-  } else if (searchFailed) {
-    fullSystem = `${systemInstruction}\n\nNOTE: Web search was needed but failed. Do NOT use training data for current events. Tell user: "Maaf, pencarian internet sedang bermasalah, coba lagi sebentar."`
-  } else {
-    fullSystem = systemInstruction
-  }
+  const fullSystem = realtimePrompt
+    ? `${systemInstruction}${realtimePrompt}`
+    : systemInstruction
 
   const messages: ApiMessage[] = [
     { role: 'system', content: fullSystem },
@@ -91,8 +51,14 @@ export async function POST(req: NextRequest) {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
-      if (searchContext) {
-        send({ searchPerformed: true })
+      // Tell the frontend a search is happening (so it can show the 🔍 indicator)
+      if (realtimeCtx.performed) {
+        send({
+          searchPerformed: true,
+          sources: realtimeCtx.sourceCount,
+          pagesRead: realtimeCtx.pagesRead,
+          query: realtimeCtx.query,
+        })
       }
 
       const ok = await streamChat(messages, (delta) =>
@@ -120,10 +86,14 @@ export async function POST(req: NextRequest) {
 
 function buildInstruction(prefs?: Preferences | null): string {
   const p = prefs || {}
+  const today = new Date().toISOString().split('T')[0]
   const parts: string[] = [
     'You are Epong AI, a helpful AI assistant built by Wensy Corp (Epong) — a handsome guy from Mbodong and Waemata, Labuan Bajo.',
+    `Today's date is ${today}. Your training data has a cutoff, so for anything time-sensitive (news, prices, events, current people in roles), rely on the provided web search results.`,
     'Detect the language the user speaks and respond in that same language.',
     'Always use correct spelling, grammar, and punctuation — never mirror the user\'s typos.',
+    'When you use web search results, cite sources naturally (e.g., "menurut [1]" or "berdasarkan sumber dari detik.com"). Be transparent that the info came from a web search.',
+    'If the user asks about something current but you don\'t have search results, honestly say you don\'t have the latest info rather than guessing.',
   ]
 
   const toneMap: Record<string, string> = {

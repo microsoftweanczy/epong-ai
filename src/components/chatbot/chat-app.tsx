@@ -270,13 +270,16 @@ export default function ChatApp() {
                 break
               }
               if (json.searchPerformed) {
-                // Show "searching web..." with source count
+                // Show "searching web..." with source count + query
                 const sources = json.sources || 0
                 const pages = json.pagesRead || 0
+                const query = json.query ? `: "${json.query}"` : ''
                 const searchMsg =
                   pages > 0
-                    ? `🔍 Mencari di ${sources} sumber, membaca ${pages} halaman...`
-                    : `🔍 Mencari informasi terbaru di internet...`
+                    ? `🔍 Mencari di ${sources} sumber, membaca ${pages} halaman${query}...`
+                    : sources > 0
+                    ? `🔍 Mencari di ${sources} sumber${query}...`
+                    : `🔍 Mencari informasi terbaru di internet${query}...`
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
