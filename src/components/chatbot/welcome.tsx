@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Quote as QuoteIcon, Sparkles, MessageCircle, Lightbulb, PenLine } from 'lucide-react'
+import { Quote as QuoteIcon, Sparkles, MessageCircle, Lightbulb, PenLine, BookOpen } from 'lucide-react'
 import { Logo } from './logo'
+import { PROMPT_TEMPLATES } from '@/lib/chat-utils'
 
 interface DisplayQuote {
   text: string
@@ -28,6 +29,7 @@ export function Welcome({ userName, onPick }: Props) {
     : 'Halo!'
 
   const [quote, setQuote] = useState<DisplayQuote | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
 
   // Fetch a real quote from the API — with a 5s timeout so the spinner
   // never spins forever.
@@ -48,6 +50,9 @@ export function Welcome({ userName, onPick }: Props) {
       ctrl.abort()
     }
   }, [])
+
+  // Group templates by category
+  const categories = Array.from(new Set(PROMPT_TEMPLATES.map((t) => t.category)))
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
@@ -107,9 +112,41 @@ export function Welcome({ userName, onPick }: Props) {
         })}
       </div>
 
+      {/* Prompt templates library */}
+      <button
+        onClick={() => setShowTemplates((v) => !v)}
+        className="mt-4 flex items-center gap-1.5 rounded-full bg-[#0A84FF]/10 px-3 py-1.5 text-[11px] font-medium text-[#0A84FF] transition hover:bg-[#0A84FF]/20"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        {showTemplates ? 'Sembunyikan template' : 'Lihat template prompt'}
+      </button>
+      {showTemplates && (
+        <div className="mt-3 w-full max-w-md">
+          {categories.map((cat) => (
+            <div key={cat} className="mb-3">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {cat}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {PROMPT_TEMPLATES.filter((t) => t.category === cat).map((t, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onPick?.(t.prompt)}
+                    className="tap-feedback flex items-center gap-1 rounded-full border border-slate-200 bg-white/60 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-[#0A84FF]/40 hover:bg-white active:scale-95 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
+                  >
+                    <span>{t.icon}</span>
+                    <span>{t.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Hint */}
       <p className="mt-5 max-w-sm text-center text-[12px] text-slate-400 sm:mt-6 sm:text-[13px]">
-        Ketik pesan di bawah untuk mulai mengobrol dengan Epong AI.
+        Ketik pesan di bawah, atau gunakan mikrofon/lampiran untuk mulai.
       </p>
     </div>
   )

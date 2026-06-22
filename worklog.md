@@ -937,3 +937,66 @@ Work Log:
 
 Stage Summary:
 - Upload feature now supports 70+ file extensions across 4 categories: images (10), videos (10), text/code files (40+), and documents (10). Videos are analyzed via VLM video_url, PDFs/docs via file_url, images via image_url, text files via direct content injection. All attachment types have appropriate visual previews in both composer and message bubbles.
+
+---
+Task ID: 36
+Agent: main
+Task: Integrate all recommended features
+
+Work Log:
+- Implemented 8 features across the app. All lint clean, no errors.
+
+**1. Voice Input (ASR)** — /api/asr/route.ts + mic button in Composer:
+  - Mic button (Mic icon) next to paperclip in the composer
+  - Records audio via MediaRecorder API, sends to /api/asr
+  - /api/asr uses z-ai-web-dev-sdk's audio.transcriptions.create()
+  - Transcribed text is inserted into the textarea
+  - Pulsing red when recording, spinner when transcribing
+
+**2. Voice Output (TTS)** — /api/tts/route.ts + speaker button on AI messages:
+  - Volume2 button on every assistant message (next to Copy)
+  - Calls /api/tts which uses z-ai-web-dev-sdk's audio.speech.create()
+  - Returns base64 MP3, plays via HTML5 Audio
+  - Click again to pause/resume
+  - 25s timeout, caps text at 1000 chars
+
+**3. Export & Share** — Export menu in header:
+  - Download icon button in the header (appears when conversation has messages)
+  - Hover dropdown with 3 options:
+    * Export Markdown (.md file with formatted headers)
+    * Export Teks (.txt plain text)
+    * Copy Semua (copy entire conversation to clipboard)
+
+**4. Search in Conversations** — Search bar in sidebar:
+  - Search input with Search icon in the sidebar (below "Obrolan Baru")
+  - Filters conversations by title in real-time
+  - Shows "Tidak ada obrolan cocok" when no matches
+
+**5. Pin/Bookmark Messages** — Pin button on AI messages:
+  - Pin icon button on every assistant message (next to TTS)
+  - Click to pin (amber), click again to unpin
+  - Pinned messages stored in localStorage (epong-pinned-messages)
+  - Each pin stores: messageId, conversationId, conversationTitle, content, pinnedAt
+
+**6. Code Block Enhancement** — CodeBlock component:
+  - Custom `pre` renderer in ReactMarkdown
+  - Copy button (top-right) on every code block — appears on hover
+  - Copies the code text to clipboard, shows green check for 2s
+
+**7. Conversation Templates** — Prompt library on welcome page:
+  - "Lihat template prompt" button below suggestion chips
+  - 10 templates across 5 categories: Tulisan, Kreatif, Produktivitas, Belajar, Kode, Lainnya
+  - Click a template → sends the prompt to chat immediately
+  - Templates: Tulis Email, Ringkas Artikel, Terjemahkan, Brainstorm Ide, Caption Sosmed, Buat Rencana, Jelaskan Konsep, Bantu Kode, Bandingkan Produk, Resep Masakan
+
+**8. Content Filter (Safe Mode)** — Toggle in Settings:
+  - Added `safeMode: boolean` to Preferences
+  - "Mode Aman" toggle in settings panel (Shield icon)
+  - When enabled, filters NSFW/gambling content via isContentSafe() in chat-utils.ts
+
+- Created src/lib/chat-utils.ts with all utilities: searchMessages, getPinnedMessages, togglePinMessage, isPinned, exportConversationAsMarkdown, exportConversationAsText, downloadFile, copyToClipboard, PROMPT_TEMPLATES, isContentSafe.
+
+- Verified: all buttons present (Rekam suara, Lampirkan, Sembunyikan sidebar, Lihat template prompt, Cari obrolan search bar). VLM confirmed features visible. Lint clean. No errors.
+
+Stage Summary:
+- 8 features integrated: Voice Input (ASR), Voice Output (TTS), Export & Share (MD/TXT/Copy), Search, Pin/Bookmark, Code Block Copy, Prompt Templates, Safe Mode. All using z-ai SDK for voice + client-side utilities for the rest. No external dependencies needed.

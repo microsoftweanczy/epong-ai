@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Menu, SquarePen, EyeOff, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Menu, SquarePen, EyeOff, PanelLeftClose, PanelLeftOpen, Download, Copy } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
@@ -10,6 +10,12 @@ import { SettingsPanel } from './settings-panel'
 import { LoginScreen } from './login-screen'
 import { IncognitoToggle } from './incognito-toggle'
 import { getStore } from '@/lib/storage'
+import {
+  exportConversationAsMarkdown,
+  exportConversationAsText,
+  downloadFile,
+  copyToClipboard,
+} from '@/lib/chat-utils'
 import { useThemeSync } from '@/lib/theme'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
@@ -742,6 +748,48 @@ export default function ChatApp() {
               </h1>
             </div>
             <IncognitoToggle />
+            {/* Export menu — only show when there are messages */}
+            {messages.length > 0 && activeConv && (
+              <div className="relative group/export">
+                <button
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
+                  aria-label="Export percakapan"
+                  title="Export percakapan"
+                >
+                  <Download className="h-[18px] w-[18px]" />
+                </button>
+                <div className="absolute right-0 top-full z-30 hidden w-44 flex-col rounded-xl border border-slate-200 bg-white py-1 shadow-lg group-hover/export:flex dark:border-slate-700 dark:bg-slate-800">
+                  <button
+                    onClick={() => {
+                      const md = exportConversationAsMarkdown(activeConv, messages)
+                      downloadFile(`${activeConv.title}.md`, md, 'text/markdown')
+                    }}
+                    className="px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    📄 Export Markdown
+                  </button>
+                  <button
+                    onClick={() => {
+                      const txt = exportConversationAsText(activeConv, messages)
+                      downloadFile(`${activeConv.title}.txt`, txt, 'text/plain')
+                    }}
+                    className="px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    📝 Export Teks
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const txt = exportConversationAsText(activeConv, messages)
+                      const ok = await copyToClipboard(txt)
+                      toast.success(ok ? 'Percakapan disalin' : 'Gagal menyalin', { duration: 1500 })
+                    }}
+                    className="px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    📋 Copy Semua
+                  </button>
+                </div>
+              </div>
+            )}
             <button
               onClick={handleNew}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10"
@@ -772,6 +820,8 @@ export default function ChatApp() {
                 messages={messages}
                 streamingId={streamingId}
                 onRetry={handleRetry}
+                conversationId={activeId || undefined}
+                conversationTitle={activeConv?.title}
               />
               {loadingMsgs && messages.length === 0 && (
                 <div className="flex items-center justify-center py-10 text-sm text-slate-400">

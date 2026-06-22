@@ -3,9 +3,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import {
   ArrowUp, Square, Shirt, MessageSquare, Paperclip, X,
-  FileText, Image as ImageIcon, Video, File,
+  FileText, Image as ImageIcon, Video, File, Mic, Loader2,
 } from 'lucide-react'
 import type { Attachment } from '@/lib/types'
+import { toast } from 'sonner'
 
 export type ChatMode = 'chat' | 'image'
 
@@ -77,8 +78,12 @@ function readFileAsText(file: File): Promise<string> {
 export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
   const [value, setValue] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   // auto-grow textarea
   useEffect(() => {
@@ -87,6 +92,65 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
     ta.style.height = '0px'
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
   }, [value])
+
+  // ── Voice input (ASR) ──
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        stream.getTracks().forEach((t) => t.stop())
+        // Convert to base64
+        const reader = new FileReader()
+        reader.onloadend = async () => {
+          const dataUrl = reader.result as string
+          setTranscribing(true)
+          try {
+            const res = await fetch('/api/asr', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audio: dataUrl }),
+            })
+            if (!res.ok) throw new Error('ASR failed')
+            const data = await res.json()
+            if (data.text) {
+              setValue((prev) => (prev ? prev + ' ' : '') + data.text)
+              toast.success('Transkripsi suara berhasil')
+            } else {
+              toast.error('Tidak ada teks terdeteksi')
+            }
+          } catch (e: any) {
+            toast.error('Gagal transkripsi: ' + e.message)
+          } finally {
+            setTranscribing(false)
+          }
+        }
+        reader.readAsDataURL(audioBlob)
+      }
+      recorder.start()
+      mediaRecorderRef.current = recorder
+      setRecording(true)
+    } catch (e: any) {
+      toast.error('Tidak bisa akses mikrofon: ' + e.message)
+    }
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop()
+      setRecording(false)
+    }
+  }, [recording])
+
+  const toggleRecording = useCallback(() => {
+    if (recording) stopRecording()
+    else startRecording()
+  }, [recording, startRecording, stopRecording])
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -203,6 +267,28 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-900/8 hover:text-[#0A84FF] disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/10 sm:h-9 sm:w-9"
               >
                 <Paperclip className="h-[18px] w-[18px]" />
+              </button>
+            )}
+            {/* Voice input button (hidden in image-gen mode) */}
+            {!isImageMode && (
+              <button
+                onClick={toggleRecording}
+                disabled={busy || transcribing}
+                aria-label={recording ? 'Berhenti merekam' : 'Rekam suara'}
+                title={recording ? 'Klik untuk berhenti merekam' : 'Rekam pesan suara'}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40 sm:h-9 sm:w-9 ${
+                  recording
+                    ? 'animate-pulse bg-red-500 text-white'
+                    : transcribing
+                    ? 'text-[#0A84FF]'
+                    : 'text-slate-500 hover:bg-slate-900/8 hover:text-[#0A84FF] dark:text-slate-400 dark:hover:bg-white/10'
+                }`}
+              >
+                {transcribing ? (
+                  <Loader2 className="h-[18px] w-[18px] animate-spin" />
+                ) : (
+                  <Mic className="h-[18px] w-[18px]" />
+                )}
               </button>
             )}
             <input

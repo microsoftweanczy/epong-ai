@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   Heart,
   Zap,
+  Shield,
 } from 'lucide-react'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import {
@@ -200,6 +201,13 @@ export function SettingsPanel({ open, onClose }: Props) {
                 desc="Tantang ide dengan jujur & konstruktif"
                 checked={prefs.critical}
                 onChange={(v) => setPrefs({ critical: v })}
+              />
+              <ToggleRow
+                icon={Shield}
+                label="Mode Aman"
+                desc="Filter konten tidak pantas (NSFW, judi)"
+                checked={prefs.safeMode}
+                onChange={(v) => setPrefs({ safeMode: v })}
               />
 
               <button

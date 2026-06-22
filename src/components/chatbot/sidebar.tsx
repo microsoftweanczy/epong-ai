@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut, Search } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
 import { formatTime } from '@/lib/format'
 import { Logo } from './logo'
@@ -37,6 +37,13 @@ export function Sidebar({
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredConversations = searchQuery.trim()
+    ? conversations.filter((c) =>
+        c.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : conversations
 
   const startEdit = (c: Conversation) => {
     setEditingId(c.id)
@@ -94,6 +101,20 @@ export function Sidebar({
             </button>
           </div>
 
+          {/* Search bar — filter conversations by title */}
+          <div className="px-2.5 pb-2 sm:px-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari obrolan..."
+                className="w-full rounded-xl border border-slate-200 bg-white/60 py-1.5 pl-8 pr-2 text-[12px] text-slate-700 outline-none transition focus:border-[#0A84FF]/40 focus:bg-white dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200"
+              />
+            </div>
+          </div>
+
           {/* List */}
           <div className="thin-scrollbar flex-1 overflow-y-auto px-2 pb-2 sm:px-2">
             {conversations.length === 0 && (
@@ -103,7 +124,12 @@ export function Sidebar({
                 Mulai obrolan baru untuk memulai.
               </div>
             )}
-            {conversations.map((c) => {
+            {conversations.length > 0 && filteredConversations.length === 0 && (
+              <div className="px-3 py-8 text-center text-sm text-slate-400">
+                Tidak ada obrolan cocok dengan "{searchQuery}".
+              </div>
+            )}
+            {filteredConversations.map((c) => {
               const isActive = c.id === activeId
               const isEditing = editingId === c.id
               return (

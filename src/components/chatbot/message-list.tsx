@@ -8,9 +8,11 @@ interface Props {
   messages: ChatMessage[]
   streamingId: string | null
   onRetry?: (messageId: string) => void
+  conversationId?: string
+  conversationTitle?: string
 }
 
-export function MessageList({ messages, streamingId, onRetry }: Props) {
+export function MessageList({ messages, streamingId, onRetry, conversationId, conversationTitle }: Props) {
   const endRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
@@ -63,6 +65,8 @@ export function MessageList({ messages, streamingId, onRetry }: Props) {
             streaming={m.id === streamingId}
             canRetry={m.id === lastAssistantId && m.role === 'assistant'}
             onRetry={onRetry}
+            conversationId={conversationId}
+            conversationTitle={conversationTitle}
           />
         ))}
         <div ref={endRef} className="h-1" />

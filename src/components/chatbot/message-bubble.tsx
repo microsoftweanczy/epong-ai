@@ -1,21 +1,38 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Copy, Check, RefreshCw, FileText, Video, File } from 'lucide-react'
+import {
+  Copy, Check, RefreshCw, FileText, Video, File,
+  Volume2, Loader2, Pin, PinOff,
+} from 'lucide-react'
 import type { ChatMessage } from '@/lib/types'
 import { formatTime } from '@/lib/format'
+import { togglePinMessage, isPinned } from '@/lib/chat-utils'
+import { CodeBlock } from './code-block'
+import { toast } from 'sonner'
 
 interface Props {
   message: ChatMessage
   streaming?: boolean
   canRetry?: boolean
   onRetry?: (messageId: string) => void
+  conversationId?: string
+  conversationTitle?: string
 }
 
-function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
+function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversationId, conversationTitle }: Props) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
+  const [ttsLoading, setTtsLoading] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const [pinned, setPinned] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Check pinned state on mount
+  useState(() => {
+    setPinned(isPinned(message.id))
+  })
 
   const handleCopy = async () => {
     // For image messages, copy the prompt (alt text) not the huge data URL
@@ -39,6 +56,53 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
       } catch {}
       document.body.removeChild(ta)
     }
+  }
+
+  // ── Text-to-Speech ──
+  const handleTTS = async () => {
+    if (playing && audioRef.current) {
+      audioRef.current.pause()
+      setPlaying(false)
+      return
+    }
+    if (audioRef.current) {
+      audioRef.current.play()
+      setPlaying(true)
+      return
+    }
+    setTtsLoading(true)
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: message.content }),
+      })
+      if (!res.ok) throw new Error('TTS failed')
+      const data = await res.json()
+      if (data.audio) {
+        const audio = new Audio(data.audio)
+        audioRef.current = audio
+        audio.onended = () => setPlaying(false)
+        audio.play()
+        setPlaying(true)
+      }
+    } catch (e: any) {
+      toast.error('Gagal membuat audio: ' + e.message)
+    } finally {
+      setTtsLoading(false)
+    }
+  }
+
+  // ── Pin / Bookmark ──
+  const handlePin = () => {
+    if (!conversationId) return
+    const nowPinned = togglePinMessage(
+      message,
+      conversationId,
+      conversationTitle || ''
+    )
+    setPinned(nowPinned)
+    toast.success(nowPinned ? 'Pesan di-pin' : 'Pin dihapus', { duration: 1500 })
   }
 
   if (isUser) {
@@ -136,7 +200,13 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
           </div>
         ) : (
           <div className="md-body text-[14px] leading-relaxed text-slate-800 sm:text-[15px] dark:text-slate-200">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
             {streaming && (
               <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
             )}
@@ -163,6 +233,39 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
                 <Copy className="h-3.5 w-3.5" />
               )}
             </button>
+            {/* Text-to-Speech */}
+            <button
+              onClick={handleTTS}
+              disabled={ttsLoading}
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-slate-900/8 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-slate-200 ${
+                playing ? 'text-[#0A84FF]' : 'text-slate-400'
+              }`}
+              aria-label={playing ? 'Jeda audio' : 'Bacakan dengan suara'}
+              title={playing ? 'Jeda' : 'Bacakan dengan suara'}
+            >
+              {ttsLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5" />
+              )}
+            </button>
+            {/* Pin / Bookmark */}
+            {conversationId && (
+              <button
+                onClick={handlePin}
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200 ${
+                  pinned ? 'text-amber-500' : 'text-slate-400'
+                }`}
+                aria-label={pinned ? 'Hapus pin' : 'Pin pesan'}
+                title={pinned ? 'Hapus pin' : 'Pin pesan'}
+              >
+                {pinned ? (
+                  <PinOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Pin className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
             {canRetry && onRetry && (
               <button
                 onClick={() => onRetry(message.id)}
