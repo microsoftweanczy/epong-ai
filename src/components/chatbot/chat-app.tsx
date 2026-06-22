@@ -293,9 +293,15 @@ export default function ChatApp() {
                   )
                 )
               }
-              // Provider info — show which API was used
+              // Provider info — append to response text (not a popup)
               if (json.provider) {
-                toast.info(`API: ${json.provider}`, { duration: 2000 })
+                const providerLabel = `\n\n*— via ${json.provider}*`
+                accumulated += providerLabel
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+                  )
+                )
               }
             } catch {
               /* ignore */
