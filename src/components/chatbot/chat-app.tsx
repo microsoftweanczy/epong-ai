@@ -506,12 +506,8 @@ async function extractMemories(
         added++
       }
     }
-    if (added > 0) {
-      toast.success(`${added} memori baru tersimpan otomatis`, {
-        duration: 2500,
-      })
-    }
+    // Silent — no toast popup. Memory extraction is best-effort, never block the chat.
   } catch {
-    // silent — extraction is best-effort, never block the chat
+    // silent
   }
 }

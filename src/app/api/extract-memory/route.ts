@@ -12,29 +12,34 @@ export const maxDuration = 30
  * Returns JSON: { memories: [{content, category}, ...] }
  */
 
-const EXTRACT_PROMPT = `Kamu adalah asisten yang mengekstrak poin penting dari percakapan untuk disimpan sebagai memori jangka panjang.
+const EXTRACT_PROMPT = `Kamu adalah asisten yang mengekstrak poin PENTING SAJA dari percakapan untuk disimpan sebagai memori jangka panjang.
 
-TUGAS: Dari percakapan berikut, ekstrak HANYA informasi yang:
-- Fakta personal tentang user (nama, lokasi, pekerjaan, keluarga, hobi)
-- Preferensi user (suka/tidak suka, gaya komunikasi)
-- Tujuan atau rencana user
-- Konteks penting (sedang mengerjakan apa, masalah apa)
+TUGAS: Ekstrak HANYA informasi yang BENAR-BENAR PENTING dan berguna untuk percakapan mendatang:
+- Identitas user (nama, lokasi, pekerjaan) — hanya jika disebutkan jelas
+- Preferensi kuat (suka/tidak suka yang konsisten)
+- Tujuan atau rencana konkret
+- Konteks penting yang akan relevan lagi (sedang mengerjakan proyek apa, punya hewan peliharaan, dll)
+
+JANGAN EKSTRAK:
+- Basa-basi, sapaan, terima kasih
+- Pertanyaan sementara
+- Informasi umum yang tidak spesifik tentang user
+- Hal-hal sepele yang tidak akan relevan lagi
 
 ATURAN:
-- Jangan ekstrak kalimat basa-basi (sapaan, terima kasih)
-- Jangan ekstrak pertanyaan yang belum dijawab
-- Hanya ekstrak kalimat pendek dan padat (maks 15 kata per poin)
-- Jangan duplikat poin yang mirip
-- Kalau tidak ada poin penting, kembalikan array kosong []
+- Hanya ekstrak yang BENAR-BENAR penting. Lebih baik sedikit tapi berkualitas.
+- Maks 15 kata per poin, padat dan jelas.
+- Kalau tidak ada yang penting, kembalikan array kosong []
+- Jangan duplikat dengan memori yang sudah ada.
 
-FORMAT OUTPUT: HANYA JSON array, tanpa markdown, tanpa penjelasan.
+FORMAT OUTPUT: HANYA JSON array, tanpa markdown.
 Contoh: [{"content":"Tinggal di Makassar","category":"fakta"},{"content":"Suka kopi susu","category":"preferensi"}]
 
-Kategori yang tersedia: fakta, preferensi, tujuan, konteks`
+Kategori: fakta, preferensi, tujuan, konteks`
 
-const MIN_MESSAGES = 2
-const MIN_TOTAL_CHARS = 80
-const MAX_MEMORIES_PER_EXTRACTION = 5
+const MIN_MESSAGES = 4
+const MIN_TOTAL_CHARS = 150
+const MAX_MEMORIES_PER_EXTRACTION = 3
 const MAX_MEMORY_LENGTH = 150
 const VALID_CATEGORIES = ['fakta', 'preferensi', 'tujuan', 'konteks']
 
