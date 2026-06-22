@@ -1044,3 +1044,17 @@ Work Log:
 
 Stage Summary:
 - Voice input (ASR) is now fixed. Records audio as 16kHz mono WAV, sends raw base64 to /api/asr, which calls `zai.audio.asr.create({ file_base64 })`. Transcribed text is inserted into the chat input textarea.
+
+---
+Task ID: 39
+Agent: main
+Task: Push to deploy
+
+Work Log:
+- 6 commits ready (Tasks 34-38: upload feature, multi-format support, all recommended features, remove sidebar button, fix ASR). Working tree clean. Lint clean.
+- Pushed: `d6a4e75..e3f910e main -> main` ✓
+- Local + remote in sync at e3f910e.
+- Vercel auto-deploy triggered.
+
+Stage Summary:
+- Successfully pushed 6 commits. Vercel will auto-deploy.
