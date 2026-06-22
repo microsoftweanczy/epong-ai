@@ -56,3 +56,4 @@ server.log
 # screenshots / temp images (not part of the app)
 /*.png
 /upload/
+.env.local
