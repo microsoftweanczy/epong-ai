@@ -5,51 +5,97 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Image generation endpoint.
- * Uses z-ai-web-dev-sdk's images.generations.create() to generate an image
- * from a text prompt. Returns the image as a base64 data URL.
+ * Image generation endpoint — uses Qwen z-image-turbo via DashScope.
  *
- * Includes retry logic (up to 3 attempts) because the image API can be
- * slow or fail intermittently.
+ * The model is called via the multimodal-generation endpoint:
+ *   POST https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+ *
+ * The response contains a message with an "image" field (URL to the generated PNG).
+ * We fetch the image and return it as a base64 data URL so the client can render
+ * it inline (and so it persists with the conversation).
  *
  * POST body: { prompt: string, size?: string }
- * Response: { image: "data:image/png;base64,..." } | { error: string }
+ * Response: { image: "data:image/png;base64,...", prompt } | { error: string }
  */
 
-const SUPPORTED_SIZES = [
-  '1024x1024',
-  '768x1344',
-  '864x1152',
-  '1344x768',
-  '1152x864',
-  '1440x720',
-  '720x1440',
-]
-
-const DEFAULT_SIZE = '1024x1024'
+const DASHSCOPE_BASE = 'https://dashscope-intl.aliyuncs.com/api/v1'
+const MODEL = 'z-image-turbo'
 const MAX_RETRIES = 3
-const ATTEMPT_TIMEOUT_MS = 40_000 // per-attempt timeout
+const FETCH_IMAGE_TIMEOUT = 15_000
 
-let _zai: any = null
-async function getZAI() {
-  if (_zai) return _zai
-  const ZAIModule = await import('z-ai-web-dev-sdk')
-  const ZAI = ZAIModule.default
-  _zai = await ZAI.create()
-  return _zai
+function getApiKey(): string | null {
+  // Allow override via env; fall back to the built-in key.
+  return process.env.QWEN_IMAGE_API_KEY || 'sk-ws-H.IYYPHR.dM6s.MEUCID8hSB15TQhZO_RutoErcWE0dXcb5lmQKeeyc319DpGbAiEA4sHr-BtPdLPDyi6TBfqCUNREaPSpusiiUoRxFBDycWM'
 }
 
-async function tryGenerate(prompt: string, size: string): Promise<string> {
-  const zai = await getZAI()
-  const response: any = await Promise.race([
-    zai.images.generations.create({ prompt, size }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('generation timeout')), ATTEMPT_TIMEOUT_MS)
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), ms)
     ),
   ])
-  const base64 = response?.data?.[0]?.base64
-  if (!base64) throw new Error('respons kosong')
-  return base64
+}
+
+/** Call z-image-turbo and return the generated image URL. */
+async function generateImageUrl(prompt: string): Promise<string> {
+  const apiKey = getApiKey()
+  if (!apiKey) throw new Error('API key not configured')
+
+  const res = await withTimeout(
+    fetch(`${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: prompt }],
+            },
+          ],
+        },
+      }),
+    }),
+    45_000
+  )
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`DashScope ${res.status}: ${text.slice(0, 200)}`)
+  }
+
+  const data = await res.json()
+  // Response shape: { output: { choices: [{ message: { content: [{ image: "https://..." }] } }] } }
+  const choices = data?.output?.choices
+  if (!Array.isArray(choices) || choices.length === 0) {
+    throw new Error('No choices in response')
+  }
+
+  const content = choices[0]?.message?.content
+  if (!Array.isArray(content)) {
+    throw new Error('No content in response')
+  }
+
+  const imageItem = content.find((c: any) => c?.image)
+  if (!imageItem?.image) {
+    throw new Error('No image in response')
+  }
+
+  return imageItem.image as string
+}
+
+/** Download the image URL and convert to base64 data URL. */
+async function downloadAsDataUrl(url: string): Promise<string> {
+  const res = await withTimeout(fetch(url), FETCH_IMAGE_TIMEOUT)
+  if (!res.ok) throw new Error(`Failed to download image: ${res.status}`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const base64 = buffer.toString('base64')
+  return `data:image/png;base64,${base64}`
 }
 
 export async function POST(req: NextRequest) {
@@ -65,25 +111,22 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Prompt wajib diisi' }, { status: 400 })
   }
 
-  const size = SUPPORTED_SIZES.includes(body.size || '')
-    ? body.size!
-    : DEFAULT_SIZE
-
-  // Retry loop — image generation can fail or timeout intermittently
   let lastError: any = null
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const base64 = await tryGenerate(prompt, size)
+      const imageUrl = await generateImageUrl(prompt)
+      const dataUrl = await downloadAsDataUrl(imageUrl)
       return Response.json({
-        image: `data:image/png;base64,${base64}`,
+        image: dataUrl,
         prompt,
-        size,
         attempts: attempt,
       })
     } catch (e: any) {
       lastError = e
-      console.error(`[generate-image] attempt ${attempt}/${MAX_RETRIES} failed:`, e?.message)
-      // Brief pause before retry (except on last attempt)
+      console.error(
+        `[generate-image] attempt ${attempt}/${MAX_RETRIES} failed:`,
+        e?.message
+      )
       if (attempt < MAX_RETRIES) {
         await new Promise((r) => setTimeout(r, 500 * attempt))
       }

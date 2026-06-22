@@ -645,3 +645,34 @@ Work Log:
 
 Stage Summary:
 - Image-gen toggle is now a small shirt icon button labeled "Buat Gambar", placed below the chat input box. Clean, minimal, doesn't clutter the input bar.
+
+---
+Task ID: 27
+Agent: main
+Task: Switch image generation API to Qwen z-image-turbo (DashScope)
+
+Work Log:
+- Investigated the user's API key (sk-ws-...). It's a DashScope (Qwen Cloud) key.
+- Listed available models via the /compatible-mode/v1/models endpoint. Found `z-image-turbo` in the model list (the model the user requested).
+- Tested the OpenAI-compatible /images/generations endpoint → 404 (z-image-turbo doesn't use that endpoint).
+- Tested the multimodal-generation endpoint → WORKS. Response shape: { output: { choices: [{ message: { content: [{ image: "https://..." }] } }] } }. The image is returned as a URL (hosted on Alibaba OSS).
+
+- Rewrote src/app/api/generate-image/route.ts:
+  * Endpoint: POST https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+  * Model: z-image-turbo
+  * Request body: { model, input: { messages: [{ role: "user", content: [{ text: prompt }] }] } }
+  * Response: extracts the image URL from output.choices[0].message.content[].image
+  * Downloads the image URL and converts to base64 data URL (so it persists inline with the conversation)
+  * 3-attempt retry with backoff
+  * 45s timeout on generation, 15s timeout on image download
+  * API key: reads from QWEN_IMAGE_API_KEY env var, falls back to the built-in key
+
+- Verified end-to-end:
+  * Direct API test: generated image in 8.2s (was 30-42s with z-ai SDK — 4-5x faster!)
+  * Browser test: prompt "pemandangan gunung saat matahari terbenam" (mountain landscape at sunset)
+  * VLM confirmed: "mountainous landscape during sunset, misty clouds in valleys, rugged rocky terrain, layered mountain ranges, warm soft light" — matches prompt perfectly
+  * POST /api/generate-image 200 in 8.3s
+  * No errors, lint clean
+
+Stage Summary:
+- Image generation now uses Qwen z-image-turbo via DashScope. 4-5x faster than the previous z-ai SDK (8s vs 30-42s). No more 502 gateway timeouts. The API key is built into the route with env-var override support (QWEN_IMAGE_API_KEY).
