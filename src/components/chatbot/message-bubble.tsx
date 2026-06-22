@@ -103,17 +103,17 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
             <span className="mr-1 text-[10px] text-slate-400">
               {formatTime(message.createdAt)}
             </span>
-            {/* Copy button for user message */}
+            {/* Copy button for user message — always visible */}
             <button
               onClick={handleCopy}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 opacity-0 transition hover:bg-slate-900/8 hover:text-slate-600 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-slate-200"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
               aria-label={copied ? 'Tersalin' : 'Salin'}
               title={copied ? 'Tersalin' : 'Salin pesan'}
             >
               {copied ? (
-                <Check className="h-3 w-3 text-emerald-500" />
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
               ) : (
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" />
               )}
             </button>
           </div>
@@ -163,27 +163,27 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
           {formatTime(message.createdAt)}
         </span>
         {showActions && (
-          <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={handleCopy}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
               aria-label={copied ? 'Tersalin' : 'Salin'}
               title={copied ? 'Tersalin' : 'Salin'}
             >
               {copied ? (
-                <Check className="h-3 w-3 text-emerald-500" />
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
               ) : (
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" />
               )}
             </button>
             {canRetry && onRetry && (
               <button
                 onClick={() => onRetry(message.id)}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
                 aria-label="Coba lagi"
                 title="Coba lagi"
               >
-                <RefreshCw className="h-3 w-3" />
+                <RefreshCw className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
