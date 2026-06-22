@@ -54,10 +54,12 @@ export default function RootLayout({
             __html: `(function(){try{var t=JSON.parse(localStorage.getItem('epong-theme')||'{}').state;var m=t?t.mode:'system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
           }}
         />
-        {/* Register service worker for PWA / APK support */}
+        {/* Register service worker for PWA / APK support.
+            Also auto-reload when a new SW takes control — this is critical
+            for recovering from stale cached HTML (old SW serving broken chunks). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}`,
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})});navigator.serviceWorker.addEventListener('controllerchange',function(){if(!window.__swReloading){window.__swReloading=true;window.location.reload()}});}`,
           }}
         />
       </head>

@@ -96,22 +96,23 @@ export function useAuth() {
         return
       }
 
+      // No Supabase configured → instant finish (no timeout needed).
       if (!supabase) {
         finish(null)
         return
       }
 
       // Race getSession against a timeout — if Supabase is unreachable or
-      // slow (rare but possible), we never want to be stuck on "Memuat…".
+      // slow, we never want to be stuck on "Memuat…".
       let timedOut = false
       const timeout = setTimeout(() => {
         if (timedOut) return
         timedOut = true
         console.warn(
-          '[auth] Supabase getSession timed out after 6s — proceeding unauthenticated.'
+          '[auth] Supabase getSession timed out after 4s — proceeding unauthenticated.'
         )
         finish(null)
-      }, 6000)
+      }, 4000)
 
       try {
         const { data } = await supabase.auth.getSession()
@@ -131,9 +132,25 @@ export function useAuth() {
     // Listen for auth changes (login/logout/OAuth callback).
     // Dedupe via applyUser so repeated IDENTICAL events don't re-render.
     if (!supabase) return
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // CRITICAL: If a guest session exists, don't let Supabase auth events
+      // (INITIAL_SESSION, TOKEN_REFRESHED) nullify the guest user. Supabase
+      // fires INITIAL_SESSION with null when there's no Supabase session —
+      // which would kick a guest user back to the login screen.
+      const guest = loadGuest()
+      if (guest) {
+        // Only apply if the event brings a REAL Supabase user (e.g., after
+        // email login the guest was already cleared by signInWithEmail).
+        const supabaseUser = normalizeUser(session?.user ?? null)
+        if (supabaseUser) {
+          applyUser(supabaseUser)
+        }
+        // Otherwise: keep the guest. Don't nullify.
+        setLoading(false)
+        return
+      }
+
       applyUser(normalizeUser(session?.user ?? null))
-      // Ensure loading is cleared on any auth event (safety net).
       setLoading(false)
     })
 
@@ -146,19 +163,43 @@ export function useAuth() {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
     clearGuest() // clear any guest session
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+    try {
+      const { error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Login timeout — coba lagi')),
+            10000
+          )
+        ),
+      ])
+      return { error }
+    } catch (e: any) {
+      return { error: { message: e?.message || 'Gagal masuk' } as any }
+    }
   }, [])
 
   const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
     clearGuest()
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    })
-    return { data, error }
+    try {
+      const { data, error } = await Promise.race([
+        supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Pendaftaran timeout — coba lagi')),
+            10000
+          )
+        ),
+      ])
+      return { data, error }
+    } catch (e: any) {
+      return { error: { message: e?.message || 'Gagal daftar' } as any }
+    }
   }, [])
 
   const signInAsGuest = useCallback((name?: string) => {

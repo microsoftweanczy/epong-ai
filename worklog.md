@@ -269,3 +269,47 @@ Stage Summary:
   1. Service Worker no longer caches HTML or Next.js chunks — network-first navigations guarantee fresh HTML on every page load. Cache version bumped to purge all old stale caches automatically.
   2. Auth init has a 6s timeout + event dedupe — Supabase slowness or repeated auth events can never freeze the loading screen again.
 - Verified on both desktop + mobile viewports with fresh browser state. App opens cleanly every time.
+
+---
+Task ID: 17
+Agent: main
+Task: Fix loading screen stuck + stuck in login screen when opening the app
+
+Work Log:
+- Root-caused THREE issues:
+  1. **Stale service worker in user's browser**: The old v1 SW (from before Task 16's fix) was still cached in the user's browser. It served stale HTML referencing old chunk hashes → 404 → React didn't hydrate → stuck "Memuat…" spinner. The new v2 SW only activates after the browser re-fetches /sw.js, but the old SW intercepts navigations (cache-first), so the stale HTML kept loading. Even after v2 activated, there was no mechanism to auto-reload the broken page.
+  2. **onAuthStateChange kicked guest users back to login**: When Supabase IS configured, `onAuthStateChange` fires `INITIAL_SESSION` with null session (no Supabase user). The old code called `applyUser(null)` which nullified the guest user → kicked them back to the login screen. This created a loop: login → guest → kicked back to login.
+  3. **Missing .env.local**: The `.env.local` file (with Supabase URL + anon key + GLM_API_KEY) was missing. Without Supabase env vars, `supabase` is null. Email login returns "Auth not configured" error → user stuck on login screen with no way forward (except guest mode, which wasn't obvious).
+
+- **Fix 1 — SW controllerchange auto-reload** (layout.tsx):
+  - Added `navigator.serviceWorker.addEventListener('controllerchange', ...)` in the inline `<head>` script. When the new SW takes control (via `skipWaiting()` + `clients.claim()`), the page auto-reloads. This breaks the stale-HTML loop: first load may use old SW → new SW installs → `controllerchange` fires → page reloads → second load uses new SW (network-first) → fresh HTML. Guarded with `window.__swReloading` flag to prevent double-reload.
+
+- **Fix 2 — onAuthStateChange guest protection** (auth.ts):
+  - In the `onAuthStateChange` callback, now checks `loadGuest()` first. If a guest session exists, only applies a REAL Supabase user (non-null) — never nullifies the guest. This prevents `INITIAL_SESSION` (with null session) from kicking a guest back to login.
+  - Guest users now persist reliably across reloads and auth events.
+
+- **Fix 3 — Auth init improvements** (auth.ts):
+  - When `supabase` is null (no env vars): `finish(null)` runs instantly — no timeout, no waiting. Login screen appears immediately.
+  - Reduced getSession timeout from 6s → 4s.
+  - Added 10s timeout to `signInWithEmail` and `signUpWithEmail` via `Promise.race` — if Supabase is slow/unreachable, the user gets a clear error instead of a perpetually-spinning login button.
+
+- **Fix 4 — Login screen adapts to no-Supabase mode** (login-screen.tsx):
+  - Added `isSupabaseConfigured()` check. When Supabase isn't configured:
+    * Hides the email login form (Masuk/Daftar toggle + email/password fields).
+    * Shows a blue info banner: "Mode tamu aktif — Obrolan disimpan di perangkat ini saja."
+    * Guest login button is the primary CTA.
+    * Bottom hint updates to "Masuk sebagai tamu untuk mulai mengobrol dengan Epong AI."
+  - When Supabase IS configured: shows the full email login form as before.
+
+- Verified end-to-end with Agent Browser:
+  * Fresh browser (cleared storage + SW + caches) → login screen renders instantly (no stuck loading) → shows "Mode tamu aktif" guest-only mode.
+  * Guest login → welcome screen → reload → guest persists ("IN APP", not kicked to login).
+  * Chat works (z-ai SDK fallback since GLM_API_KEY missing).
+  * No console errors, no runtime errors. Dev log all 200s.
+
+- Note: `.env.local` is missing (was deleted between sessions). The app now works gracefully without it — guest mode is fully functional (local storage persistence, z-ai SDK for chat). To restore cloud sync + email auth, the user needs to recreate `.env.local` with their Supabase URL + anon key + GLM_API_KEY.
+
+Stage Summary:
+- Loading screen stuck FIXED: SW controllerchange auto-reload breaks the stale-HTML loop; instant auth finish when no Supabase; 4s timeout as safety net.
+- Stuck in login screen FIXED: onAuthStateChange no longer kicks guests; login button has 10s timeout; login screen shows guest-only mode when Supabase isn't configured.
+- App works in three scenarios: (1) no Supabase → guest-only mode, (2) Supabase configured → full email + guest, (3) stale browser SW → auto-recovers via controllerchange reload.
