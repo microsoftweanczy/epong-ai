@@ -420,7 +420,7 @@ export default function ChatApp() {
             <Menu className="h-[18px] w-[18px]" />
           </button>
           <div className="min-w-0 flex-1 px-1">
-            <h1 className="truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white">
+            <h1 className="truncate text-[17px] font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white">
               {activeConv?.title || 'ManggarAI'}
             </h1>
           </div>

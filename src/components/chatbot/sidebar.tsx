@@ -75,7 +75,7 @@ export function Sidebar({
           <div className="flex items-center justify-between px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
             <div className="flex items-center gap-2 sm:gap-2.5">
               <Logo size={44} />
-              <span className="text-[16px] font-semibold tracking-[-0.02em] text-slate-800 sm:text-[18px] dark:text-slate-100">
+              <span className="text-[17px] font-bold tracking-[-0.02em] text-slate-900 sm:text-[19px] dark:text-white">
                 ManggarAI
               </span>
             </div>
