@@ -96,13 +96,10 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
       <div className="w-full max-w-sm">
         {/* Logo + greeting */}
         <div className="mb-7 flex flex-col items-center text-center">
-          <div className="mb-5">
-            <Logo size={120} />
+          <div className="mb-4">
+            <Logo variant="full" size={90} />
           </div>
-          <h1 className="text-[24px] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[28px]">
-            ManggarAI
-          </h1>
-          <p className="mt-2 text-[15px] text-slate-600 dark:text-slate-300">
+          <p className="mt-1 text-[14px] text-slate-500 dark:text-slate-400">
             Asisten AI pribadi yang mengenal dan mengingat Anda.
           </p>
         </div>
