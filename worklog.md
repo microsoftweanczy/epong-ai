@@ -499,3 +499,48 @@ Stage Summary:
 - Merged remote's unique features (personalization engine API + SQL schema) into the local codebase.
 - If Vercel is connected to the repo, it will auto-deploy. Required env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, GLM_API_KEY, GLM_MODEL, GLM_BASE_URL.
 - GitHub PAT was used only in the one-off push command URL; NOT stored in git config or remote URL.
+
+---
+Task ID: 23
+Agent: main
+Task: Fix chat box too low on desktop + dynamically adjust app ratio/screen size for desktop/laptop
+
+Work Log:
+- Root cause: On desktop, the `.app-shell` only constrained WIDTH (max-width) but HEIGHT was always `h-[100dvh]` — the app filled the entire viewport vertically. The composer was at y=1018-1068px on a 1080px screen — literally at the very bottom edge (only 12px gap), making it hard to click.
+- Additionally, the sidebar floated as a card (with `m-3` + `rounded-[28px]`) but the main content area went edge-to-edge with no matching treatment — inconsistent.
+
+- **Fix 1 — `.app-shell` is now a floating card on desktop** (globals.css):
+  - Mobile/tablet (<1024px): full-bleed, `border-radius: 0`, no shadow — edge-to-edge as before.
+  - Desktop (lg+, ≥1024px): `max-width: calc(100vw - 32px)`, `border-radius: 24px`, drop shadow `0 20px 60px rgba(15,23,42,0.18)`. The card has a frosted glass background (`rgba(255,255,255,0.7) + backdrop-blur(20px)`).
+  - Ultra-wide (2xl+, ≥1536px): `max-width: 1600px`, `border-radius: 28px`.
+  - 4K (≥1920px): `max-width: 1760px`.
+  - Dark mode: card background `rgba(15,23,42,0.8)`.
+
+- **Fix 2 — Outer wrapper uses padding** (chat-app.tsx):
+  - Changed from `items-center justify-center` (which stretched height) to `justify-center` + `p-0 lg:p-4 xl:p-5 2xl:p-6`.
+  - Mobile: `p-0` → app fills screen. Desktop: `p-4` (16px) → 16px gap around the card. Ultra-wide: `p-6` (24px).
+  - This creates the floating card effect with consistent gaps on all sides.
+
+- **Fix 3 — Sidebar is now flush inside the card** (sidebar.tsx):
+  - Removed the sidebar's own floating margins (`m-2 sm:m-2.5 lg:m-3`) and `h-[calc(100dvh-1rem)]` — the outer card handles spacing now.
+  - Sidebar now has `h-full` + `sm:rounded-none` + `sm:border-r` (subtle divider between sidebar and main) instead of being a separate floating card.
+  - Removed `safe-x` padding (the card's padding handles it).
+
+- **Fix 4 — Header is flush to the card top** (chat-app.tsx):
+  - Removed `mx-2 mt-2 sm:mx-3 sm:mt-3 lg:mx-4 lg:mt-4` floating margins.
+  - Header now spans full width of the card with `px-2 sm:px-3` + `lg:rounded-t-3xl` (rounds only the top corners to match the card).
+
+- **Fix 5 — Composer padding adjusted** (composer.tsx):
+  - Removed `lg:mx-4` (the card's padding handles horizontal spacing now). Keeps `mx-2 sm:mx-3 mb-2 sm:mb-3` for internal spacing.
+
+- Verified on 4 viewport sizes:
+  * **1920×1080 desktop**: shell 1760×1032, 24px gaps all sides, composer 36px from screen bottom (was 12px — fixed!). VLM: "floating card with visible gaps, chat input comfortably positioned, balanced layout."
+  * **1366×768 laptop**: shell 1326px wide, 20px gaps, composer 32px from bottom. Comfortable.
+  * **390×844 mobile (iPhone 14)**: full-bleed (0px gaps, 0px radius). Edge-to-edge as expected.
+  * **2560×1440 ultra-wide**: shell caps at 1760px, centered with 400px side gaps. Not overstretched.
+- Chat flow verified: guest login → send message → AI response. No errors. Lint clean.
+
+Stage Summary:
+- Chat box no longer too low on desktop — the entire app is now a polished floating card with 16-24px gaps from all screen edges. The composer has a comfortable 32-36px gap from the screen bottom (was 12px).
+- App dynamically adjusts ratio for all screen sizes: mobile (full-bleed) → laptop (card with 16px gaps) → desktop (wider card) → ultra-wide (capped at 1760px, centered).
+- Sidebar + main are now unified inside one card (no more inconsistent floating sidebar).

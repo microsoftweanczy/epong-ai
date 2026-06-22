@@ -546,8 +546,8 @@ export default function ChatApp() {
   }
 
   return (
-    <div className="mesh-bg relative flex h-[100dvh] w-full overflow-hidden">
-      <div className="app-shell flex h-full w-full overflow-hidden">
+    <div className="mesh-bg relative flex h-[100dvh] w-full justify-center overflow-hidden p-0 lg:p-4 xl:p-5 2xl:p-6">
+      <div className="app-shell relative flex h-full w-full overflow-hidden">
         <Sidebar
           conversations={conversations}
           activeId={activeId}
@@ -567,8 +567,8 @@ export default function ChatApp() {
 
         {/* Main */}
         <main className="relative flex min-w-0 flex-1 flex-col">
-          {/* Floating glass top bar */}
-          <header className="safe-top glass-bar sticky top-0 z-20 mx-2 mt-2 flex items-center gap-1 rounded-2xl px-2 py-2 shadow-md sm:mx-3 sm:mt-3 sm:gap-1.5 sm:px-3 lg:mx-4 lg:mt-4">
+          {/* Top bar — flush to the card edge on desktop, floating on mobile */}
+          <header className="safe-top glass-bar sticky top-0 z-20 flex items-center gap-1 px-2 py-2 shadow-sm sm:gap-1.5 sm:px-3 lg:rounded-t-3xl">
             <button
               onClick={() => setSidebarOpen(true)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:hidden"
@@ -593,7 +593,7 @@ export default function ChatApp() {
 
           {/* Incognito mode banner */}
           {incognito && (
-            <div className="mx-2 mb-0.5 mt-1 flex items-center justify-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 sm:mx-3 lg:mx-4">
+            <div className="mx-3 mb-0.5 mt-1 flex items-center justify-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1">
               <EyeOff className="h-3 w-3 text-violet-600 dark:text-violet-400" />
               <span className="text-[11px] font-medium text-violet-700 sm:text-[12px] dark:text-violet-300">
                 Mode penyamaran — obrolan tidak disimpan

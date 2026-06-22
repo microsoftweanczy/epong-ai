@@ -63,7 +63,7 @@ export function Sidebar({
         }`
       }
       >
-        <div className="safe-top safe-x glass m-2 flex h-[calc(100dvh-1rem)] flex-col rounded-[24px] sm:m-2.5 sm:h-[calc(100dvh-1.25rem)] lg:m-3 lg:h-[calc(100dvh-1.5rem)] lg:rounded-[28px]">
+        <div className="safe-top glass flex h-full flex-col sm:rounded-none sm:border-r sm:border-slate-200/60 dark:sm:border-slate-800/60">
           {/* Header */}
           <div className="flex items-center justify-between px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
             <div className="flex items-center gap-2 sm:gap-2.5">

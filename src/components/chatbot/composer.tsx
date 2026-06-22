@@ -29,7 +29,7 @@ export function Composer({ onSend, onStop, busy }: Props) {
   }
 
   return (
-    <div className="safe-bottom mx-2 mb-2 mt-1 sm:mx-3 sm:mb-3 lg:mx-4">
+    <div className="safe-bottom mx-2 mb-2 mt-1 sm:mx-3 sm:mb-3">
       <div className="mx-auto flex w-full max-w-3xl items-center gap-2 lg:max-w-4xl">
         <div className="glass flex min-h-[44px] flex-1 items-center rounded-[22px] px-3.5 py-2 shadow-lg sm:min-h-[48px] sm:rounded-[24px] sm:px-4">
           <textarea
