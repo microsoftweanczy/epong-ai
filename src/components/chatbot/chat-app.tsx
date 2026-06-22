@@ -303,7 +303,7 @@ export default function ChatApp() {
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id
-                      ? { ...m, content: accumulated + `\n\n<sub>${json.modelCode}</sub>` }
+                      ? { ...m, content: accumulated + `\n\n${json.modelCode}` }
                       : m
                   )
                 )
