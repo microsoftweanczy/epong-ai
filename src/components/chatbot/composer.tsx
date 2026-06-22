@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { ArrowUp, Square, ImagePlus, MessageSquare } from 'lucide-react'
+import { ArrowUp, Square, MessageSquare } from 'lucide-react'
 
 export type ChatMode = 'chat' | 'image'
 
@@ -11,6 +11,22 @@ interface Props {
   busy: boolean
   mode: ChatMode
   onToggleMode: () => void
+}
+
+/** Custom image-gen icon (from user's uploaded icon.ico) */
+function ImageGenIcon({ className = '', size = 18 }: { className?: string; size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/icons/image-gen-icon.png"
+      alt=""
+      width={size}
+      height={size}
+      className={className}
+      style={{ imageRendering: 'auto' }}
+      draggable={false}
+    />
+  )
 }
 
 export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
@@ -48,15 +64,11 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
             title={isImageMode ? 'Mode Gambar aktif — klik untuk kembali ke Chat' : 'Klik untuk membuat Gambar'}
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-90 sm:h-10 sm:w-10 ${
               isImageMode
-                ? 'bg-gradient-to-br from-[#0A84FF] to-[#0064D6] text-white shadow-md shadow-[#0A84FF]/30'
-                : 'text-slate-500 hover:bg-slate-900/8 hover:text-[#0A84FF] dark:text-slate-400 dark:hover:bg-white/10'
+                ? 'bg-gradient-to-br from-[#0A84FF] to-[#0064D6] shadow-md shadow-[#0A84FF]/30'
+                : 'hover:bg-slate-900/8 dark:hover:bg-white/10'
             }`}
           >
-            {isImageMode ? (
-              <ImagePlus className="h-[18px] w-[18px]" />
-            ) : (
-              <ImagePlus className="h-[18px] w-[18px]" />
-            )}
+            <ImageGenIcon size={20} className="h-[20px] w-[20px]" />
           </button>
           <textarea
             ref={taRef}
@@ -90,7 +102,7 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0A84FF] to-[#0064D6] text-white shadow-lg shadow-[#0A84FF]/30 transition hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:shadow-none sm:h-12 sm:w-12"
           >
             {isImageMode ? (
-              <ImagePlus className="h-5 w-5" />
+              <ImageGenIcon size={20} className="h-[20px] w-[20px]" />
             ) : (
               <ArrowUp className="h-5 w-5" />
             )}
