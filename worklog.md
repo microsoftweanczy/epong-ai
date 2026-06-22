@@ -188,3 +188,26 @@ Work Log:
 
 Stage Summary:
 - App rebranded to "Epong AI" with custom logo throughout. Icons + manifest ready for PWA install and Vercel deploy.
+
+---
+Task ID: 41
+Agent: main
+Task: Create test-api branch + integrate Deepseek key as primary API
+
+Work Log:
+- Identified the key sk-5a7b9e496609486992ad541717cb53dd as a **Deepseek API key** (tested against Zhipu→401, DashScope→invalid, Deepseek→402 "Insufficient Balance" — key is valid but needs balance top-up).
+- Created `test-api` branch from main.
+- Updated src/lib/ai-providers.ts:
+  * Added Deepseek as PRIMARY provider (streamFromDeepseek + completeFromDeepseek)
+  * Endpoint: https://api.deepseek.com/v1/chat/completions
+  * Model: deepseek-chat (default)
+  * Key: sk-5a7b9e496609486992ad541717cb53dd (built-in fallback, overridable via DEEPSEEK_API_KEY env var)
+  * Fallback chain: Deepseek → GLM/DashScope → OpenRouter → z-ai SDK
+  * Deepseek uses standard OpenAI-compatible SSE streaming (parseSSEStream shared with GLM/OpenRouter)
+- Verified fallback: Deepseek 402 (insufficient balance) → GLM 401 (key expired) → z-ai SDK success ("Halo!" in 1.7s). App always works.
+- Pushed test-api branch to GitHub: `* [new branch] test-api -> test-api`
+- GitHub suggests creating a PR: https://github.com/microsoftweanczy/epong-ai/pull/new/test-api
+- Lint clean.
+
+Stage Summary:
+- `test-api` branch created and pushed to GitHub with Deepseek as primary API. The key (sk-5a7b9e496609486992ad541717cb53dd) is a Deepseek key — currently has insufficient balance, but the 3-tier fallback (Deepseek→GLM→z-ai SDK) ensures the app always works. To activate Deepseek, top up the balance at https://platform.deepseek.com.
