@@ -82,8 +82,6 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
   const [transcribing, setTranscribing] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
 
   // auto-grow textarea
   useEffect(() => {
@@ -94,57 +92,148 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
   }, [value])
 
   // ── Voice input (ASR) ──
+  // Records audio as WAV (not WebM) because the ASR API may not support WebM.
+  // We use the AudioContext API to capture raw PCM samples, then encode to WAV.
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const chunksRef = useRef<Float32Array[]>([])
+
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      audioChunksRef.current = []
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, sampleRate: 16000 },
+      })
+      mediaStreamRef.current = stream
+
+      // Use AudioContext to get raw PCM data
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new AudioCtx({ sampleRate: 16000 })
+      audioContextRef.current = ctx
+
+      const source = ctx.createMediaStreamSource(stream)
+      const processor = ctx.createScriptProcessor(4096, 1, 1)
+      processorRef.current = processor
+      chunksRef.current = []
+
+      processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0)
+        // Clone the data (it gets reused)
+        chunksRef.current.push(new Float32Array(input))
       }
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        stream.getTracks().forEach((t) => t.stop())
-        // Convert to base64
-        const reader = new FileReader()
-        reader.onloadend = async () => {
-          const dataUrl = reader.result as string
-          setTranscribing(true)
-          try {
-            const res = await fetch('/api/asr', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audio: dataUrl }),
-            })
-            if (!res.ok) throw new Error('ASR failed')
-            const data = await res.json()
-            if (data.text) {
-              setValue((prev) => (prev ? prev + ' ' : '') + data.text)
-              toast.success('Transkripsi suara berhasil')
-            } else {
-              toast.error('Tidak ada teks terdeteksi')
-            }
-          } catch (e: any) {
-            toast.error('Gagal transkripsi: ' + e.message)
-          } finally {
-            setTranscribing(false)
-          }
-        }
-        reader.readAsDataURL(audioBlob)
-      }
-      recorder.start()
-      mediaRecorderRef.current = recorder
+
+      source.connect(processor)
+      processor.connect(ctx.destination)
+
       setRecording(true)
     } catch (e: any) {
       toast.error('Tidak bisa akses mikrofon: ' + e.message)
     }
   }, [])
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop()
-      setRecording(false)
+  // Convert Float32 PCM samples to a WAV Blob (16-bit PCM, mono, 16kHz)
+  const encodeWav = (chunks: Float32Array[], sampleRate: number): Blob => {
+    // Concatenate all chunks
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0)
+    const buffer = new Float32Array(totalLength)
+    let offset = 0
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset)
+      offset += chunk.length
     }
+
+    // Convert to 16-bit PCM
+    const wavBuffer = new ArrayBuffer(44 + buffer.length * 2)
+    const view = new DataView(wavBuffer)
+
+    // WAV header
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i))
+      }
+    }
+
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + buffer.length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true) // fmt chunk size
+    view.setUint16(20, 1, true) // PCM format
+    view.setUint16(22, 1, true) // mono
+    view.setUint32(24, sampleRate, true) // sample rate
+    view.setUint32(28, sampleRate * 2, true) // byte rate
+    view.setUint16(32, 2, true) // block align
+    view.setUint16(34, 16, true) // bits per sample
+    writeString(36, 'data')
+    view.setUint32(40, buffer.length * 2, true)
+
+    // Write PCM samples
+    let pos = 44
+    for (let i = 0; i < buffer.length; i++) {
+      const s = Math.max(-1, Math.min(1, buffer[i]))
+      view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+      pos += 2
+    }
+
+    return new Blob([wavBuffer], { type: 'audio/wav' })
+  }
+
+  const stopRecording = useCallback(() => {
+    if (!recording) return
+
+    // Stop the processor and close audio context
+    if (processorRef.current) {
+      processorRef.current.disconnect()
+      processorRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop())
+      mediaStreamRef.current = null
+    }
+
+    // Encode to WAV and send to ASR
+    const chunks = chunksRef.current
+    if (chunks.length === 0) {
+      setRecording(false)
+      return
+    }
+
+    const wavBlob = encodeWav(chunks, 16000)
+    setRecording(false)
+    setTranscribing(true)
+
+    // Convert WAV blob to base64 data URL
+    const reader = new FileReader()
+    reader.onloadend = async () => {
+      const dataUrl = reader.result as string
+      try {
+        const res = await fetch('/api/asr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: dataUrl }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || 'ASR failed')
+        }
+        const data = await res.json()
+        if (data.text) {
+          setValue((prev) => (prev ? prev + ' ' : '') + data.text)
+          toast.success('Transkripsi suara berhasil')
+        } else {
+          toast.error('Tidak ada teks terdeteksi')
+        }
+      } catch (e: any) {
+        toast.error('Gagal transkripsi: ' + e.message)
+      } finally {
+        setTranscribing(false)
+      }
+    }
+    reader.readAsDataURL(wavBlob)
   }, [recording])
 
   const toggleRecording = useCallback(() => {

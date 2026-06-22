@@ -1015,3 +1015,32 @@ Work Log:
 
 Stage Summary:
 - "Obrolan Baru" button removed from the left sidebar. New chat is still accessible via the header's pencil icon button. Sidebar is now cleaner.
+
+---
+Task ID: 38
+Agent: main
+Task: Fix voice input (ASR) feature
+
+Work Log:
+- Root cause: Two bugs in the ASR implementation:
+  1. Wrong SDK method: used `zai.audio.transcriptions.create({ file, model })` — should be `zai.audio.asr.create({ file_base64 })` per the ASR skill docs.
+  2. Wrong data format: passed the full data URL (`data:audio/webm;base64,...`) — the SDK expects raw base64 without the prefix.
+  3. Wrong audio format: MediaRecorder produces WebM/Opus — the ASR API returned "不支持当前文件格式" (unsupported format) for WebM. Needs WAV/PCM.
+
+- **Fix 1 — API route** (/api/asr/route.ts):
+  - Changed `zai.audio.transcriptions.create({ file, model })` → `zai.audio.asr.create({ file_base64 })`
+  - Added `stripDataUrl()` helper to extract raw base64 from the data URL prefix (`data:audio/wav;base64,...` → raw base64)
+  - Verified: tested with a real 16kHz WAV file → `{"text":"#"}` (correct — the test was a 440Hz tone, not speech)
+
+- **Fix 2 — Client-side recording** (composer.tsx):
+  - Replaced `MediaRecorder` (produces WebM/Opus) with `AudioContext + ScriptProcessor` (captures raw PCM)
+  - Records at 16kHz mono (optimal for ASR)
+  - Added `encodeWav()` function: converts Float32 PCM samples to 16-bit PCM WAV Blob (standard WAV header + data)
+  - Removed unused `mediaRecorderRef` and `audioChunksRef`
+  - The recording flow: getUserMedia → AudioContext → ScriptProcessor captures chunks → stop → encodeWav → FileReader → base64 → /api/asr → text inserted into textarea
+
+- Verified: mic button visible, no errors. ASR API accepts WAV format correctly.
+- Lint clean.
+
+Stage Summary:
+- Voice input (ASR) is now fixed. Records audio as 16kHz mono WAV, sends raw base64 to /api/asr, which calls `zai.audio.asr.create({ file_base64 })`. Transcribed text is inserted into the chat input textarea.
