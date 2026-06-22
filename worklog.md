@@ -691,3 +691,38 @@ Work Log:
 
 Stage Summary:
 - z-image-turbo is the primary and ONLY image generation API. No z-ai SDK image code remains. The route is clean and fast (8s generation).
+
+---
+Task ID: 29
+Agent: main
+Task: Verify no route conflict between text gen (GLM) and image gen (z-image-turbo)
+
+Work Log:
+- Audited all 5 API routes — each has its own directory, no path conflicts:
+  * /api/chat → text generation (GLM via ai-providers.ts)
+  * /api/generate-image → image generation (z-image-turbo via DashScope)
+  * /api/extract-memory → memory extraction (uses completeChat from ai-providers)
+  * /api/analyze-behavior → behavior analysis (uses completeChat from ai-providers)
+  * /api/quote → quote fetch (no AI)
+
+- Verified env var isolation:
+  * Text gen: reads GLM_API_KEY, GLM_MODEL, GLM_BASE_URL, OPENROUTER_API_KEY (all from ai-providers.ts)
+  * Image gen: reads QWEN_IMAGE_API_KEY (from generate-image/route.ts, with built-in fallback)
+  * No shared env vars between the two providers. No cross-imports.
+
+- Verified client-side branching (chat-app.tsx):
+  * `chatMode` state: 'chat' | 'image' (default 'chat')
+  * `handleSend`: if chatMode === 'image' → calls handleGenerateImage() → fetches /api/generate-image
+  * `handleSend`: else → fetches /api/chat (text streaming)
+  * `handleRetry`: always fetches /api/chat (text only — retry is for text responses, not images)
+  * The two code paths are completely separate; no shared state except `messages` (which just stores results).
+
+- Tested both APIs independently + simultaneously:
+  * /api/chat (GLM text): streamed "Halo Sel..." in ~3s ✓
+  * /api/generate-image (z-image-turbo): HTTP 200 in 8.3s ✓
+  * Both work in parallel without interference.
+
+- Lint: 0 errors.
+
+Stage Summary:
+- NO conflicts. Text generation (GLM) and image generation (z-image-turbo) are fully isolated: separate routes, separate env vars, separate API providers, separate client code paths. Both verified working independently.
