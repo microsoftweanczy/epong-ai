@@ -28,6 +28,7 @@ export default function ChatApp() {
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [chatMode, setChatMode] = useState<'chat' | 'image'>('chat')
 
   // ---- auth ----
   const {
@@ -180,9 +181,116 @@ export default function ChatApp() {
     [store]
   )
 
+  // ---- generate an image (image mode) ----
+  const handleGenerateImage = useCallback(
+    async (prompt: string) => {
+      const incognito = useIncognito.getState().enabled
+      if (!incognito && !store) return
+
+      // ensure a conversation — title it from the prompt
+      let convId = activeId
+      if (!incognito && !convId) {
+        const title = prompt.slice(0, TITLE_MAX_LENGTH).trim() || NEW_CHAT_TITLE
+        try {
+          const conv = await store!.createConversation(title)
+          convId = conv.id
+          setConversations((prev) => [conv, ...prev])
+          skipNextLoad.current = true
+          setActiveId(conv.id)
+        } catch (e) {
+          console.error(e)
+          return
+        }
+      }
+      if (!convId) convId = 'incognito-session'
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        conversationId: convId,
+        role: 'user',
+        content: prompt,
+        createdAt: new Date().toISOString(),
+      }
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        conversationId: convId,
+        role: 'assistant',
+        content: '🎨 Membuat gambar...',
+        createdAt: new Date().toISOString(),
+      }
+
+      setMessages((prev) => [...prev, userMsg, assistantMsg])
+      setStreamingId(assistantMsg.id)
+
+      // persist user message
+      if (!incognito) {
+        store!.addMessage(convId, 'user', prompt).catch((e) => console.error(e))
+      }
+
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      try {
+        const res = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, size: '1024x1024' }),
+          signal: controller.signal,
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || `Request failed (${res.status})`)
+        }
+
+        const data = await res.json()
+        if (data.image) {
+          // Store the image as a special markdown content with the data URL
+          const imageContent = `![${prompt}](${data.image})`
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsg.id
+                ? { ...m, content: imageContent }
+                : m
+            )
+          )
+          if (!incognito) {
+            await store!.addMessage(convId, 'assistant', imageContent)
+            refreshConvos()
+          }
+        } else {
+          throw new Error(data.error || 'No image in response')
+        }
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id))
+        } else {
+          console.error(e)
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsg.id
+                ? { ...m, content: `*(Gagal membuat gambar: ${e.message})*` }
+                : m
+            )
+          )
+        }
+      } finally {
+        setStreamingId(null)
+        abortRef.current = null
+      }
+    },
+    [activeId, store, refreshConvos]
+  )
+
   // ---- send a message (with streaming) ----
   const handleSend = useCallback(
     async (text: string) => {
+      // Branch: image generation mode
+      if (chatMode === 'image') {
+        handleGenerateImage(text)
+        return
+      }
+
       // Incognito mode: no storage at all — pure in-memory chat
       const incognito = useIncognito.getState().enabled
 
@@ -352,7 +460,7 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos, prefs, memory, addMemory, behaviorProfile]
+    [activeId, messages, store, refreshConvos, prefs, memory, addMemory, behaviorProfile, chatMode, handleGenerateImage]
   )
 
   const handleStop = useCallback(() => {
@@ -604,7 +712,7 @@ export default function ChatApp() {
           {/* Body */}
           {showWelcome ? (
             <div className="flex flex-1 flex-col">
-              <Welcome userName={user.name} />
+              <Welcome userName={user.name} onPick={handleSend} />
             </div>
           ) : (
             <>
@@ -626,6 +734,8 @@ export default function ChatApp() {
             onSend={handleSend}
             onStop={handleStop}
             busy={streamingId !== null}
+            mode={chatMode}
+            onToggleMode={() => setChatMode((m) => (m === 'chat' ? 'image' : 'chat'))}
           />
         </main>
       </div>

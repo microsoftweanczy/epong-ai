@@ -544,3 +544,51 @@ Stage Summary:
 - Chat box no longer too low on desktop — the entire app is now a polished floating card with 16-24px gaps from all screen edges. The composer has a comfortable 32-36px gap from the screen bottom (was 12px).
 - App dynamically adjusts ratio for all screen sizes: mobile (full-bleed) → laptop (card with 16px gaps) → desktop (wider card) → ultra-wide (capped at 1760px, centered).
 - Sidebar + main are now unified inside one card (no more inconsistent floating sidebar).
+
+---
+Task ID: 24
+Agent: main
+Task: Activate clickable suggestion chips on greeting page + add image generation feature with + toggle
+
+Work Log:
+- Note: User provided an API key (sk-ws-...) but it's a Stability AI format key. Used the built-in z-ai-web-dev-sdk image generation instead (already installed, no extra key needed — works in preview AND production).
+
+**Feature 1 — Clickable suggestion chips:**
+- welcome.tsx: Added `onPick?: (text: string) => void` prop. Suggestion chips are now `<button>` elements (was `<div>`) with `onClick={() => onPick?.(s.text)}`. Added hover/active styles: `hover:border-[#0A84FF]/40 hover:bg-white hover:shadow-sm active:scale-[0.98]`.
+- chat-app.tsx: Pass `onPick={handleSend}` to Welcome. When a chip is clicked, it sends the suggestion text to the chat immediately — conversation is created lazily, AI responds.
+- Verified: clicked "Jelaskan fotosintesis dengan sederhana" → message sent → AI response received.
+
+**Feature 2 — Image generation:**
+- Created src/app/api/generate-image/route.ts:
+  * Uses `zai.images.generations.create({ prompt, size })` from z-ai-web-dev-sdk.
+  * Returns `{ image: "data:image/png;base64,...", prompt, size }`.
+  * Supports 7 sizes (1024x1024 default, plus portrait/landscape variants).
+  * 45s timeout (image generation can take 20-30s).
+  * Error handling returns clear Indonesian error messages.
+
+- composer.tsx: Added a "+" toggle button (ImagePlus icon) inside the input bar, to the LEFT of the textarea. Clicking it switches between "chat" mode and "image" mode:
+  * Chat mode: button is subtle gray, icon is ArrowUp on send
+  * Image mode: button is blue gradient (active state), placeholder changes to "Deskripsikan gambar yang ingin dibuat…", send button shows ImagePlus icon, blue "Mode Gambar" banner appears below input
+  * Added `mode: 'chat' | 'image'` + `onToggleMode` props
+
+- chat-app.tsx: Added `chatMode` state. `handleSend` branches: if `chatMode === 'image'`, calls `handleGenerateImage(text)` instead of the chat streaming flow.
+  * `handleGenerateImage`: creates conversation lazily (titled from prompt), shows "🎨 Membuat gambar..." placeholder, calls /api/generate-image, replaces placeholder with `![prompt](data:image/png;base64,...)` markdown, persists to storage.
+  * Abort support: stop button aborts the fetch.
+
+- message-bubble.tsx: Added image detection — if content matches `![alt](url)` pattern, renders a native `<img>` directly (bypasses ReactMarkdown, which strips large data URLs). Image is styled with rounded corners, border, shadow, max-height 512px.
+  * Copy button on image messages copies the prompt (alt text), not the huge data URL.
+
+- globals.css: Added `.md-body img` styles (max-width, rounded, shadow) for any inline images in markdown content.
+
+- Verified end-to-end:
+  * Toggled to image mode (button turned blue, placeholder changed, "Mode Gambar" banner appeared)
+  * Typed "Kucing lucu bermain di taman" (cute cat playing in the garden)
+  * Image generated in ~30s (POST /api/generate-image 200 in 29.7s)
+  * Image rendered in chat: VLM confirmed "a cute white kitten with orange markings, standing on grass in a garden setting, raised one paw as if reaching toward a butterfly, colorful flowers and greenery" — matches the prompt perfectly.
+  * Image persisted to storage — visible after reloading the conversation.
+  * No console errors. Lint clean.
+
+Stage Summary:
+- Suggestion chips on the greeting page are now clickable — clicking one immediately sends it as a message and the AI responds.
+- Image generation feature is live: click the "+" button to switch to image mode, type a description, send → AI generates an image (1024x1024 by default) and displays it inline in the chat. The image is persisted with the conversation.
+- Uses z-ai-web-dev-sdk's built-in image generation (no external API key needed, works in both preview and production).

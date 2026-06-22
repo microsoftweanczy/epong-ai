@@ -11,6 +11,7 @@ interface DisplayQuote {
 
 interface Props {
   userName?: string | null
+  onPick?: (text: string) => void
 }
 
 const SUGGESTIONS = [
@@ -20,7 +21,7 @@ const SUGGESTIONS = [
   { icon: Sparkles, text: 'Berita teknologi AI terbaru' },
 ]
 
-export function Welcome({ userName }: Props) {
+export function Welcome({ userName, onPick }: Props) {
   const name = userName?.trim()
   const greeting = name
     ? `Halo, ${name}!`
@@ -89,18 +90,19 @@ export function Welcome({ userName }: Props) {
         )}
       </div>
 
-      {/* Suggestion chips */}
+      {/* Suggestion chips — clickable, send the prompt to the chat */}
       <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-2 sm:mt-8 sm:grid-cols-2">
         {SUGGESTIONS.map((s, i) => {
           const Icon = s.icon
           return (
-            <div
+            <button
               key={i}
-              className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/60 px-3.5 py-2.5 text-[13px] text-slate-600 backdrop-blur-sm sm:text-[14px] dark:border-slate-700/60 dark:bg-slate-800/40 dark:text-slate-300"
+              onClick={() => onPick?.(s.text)}
+              className="tap-feedback flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/60 px-3.5 py-2.5 text-left text-[13px] text-slate-600 backdrop-blur-sm transition hover:border-[#0A84FF]/40 hover:bg-white hover:shadow-sm active:scale-[0.98] sm:text-[14px] dark:border-slate-700/60 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:border-[#0A84FF]/40 dark:hover:bg-slate-800"
             >
               <Icon className="h-4 w-4 shrink-0 text-[#0A84FF] dark:text-indigo-400" />
               <span className="line-clamp-2">{s.text}</span>
-            </div>
+            </button>
           )
         })}
       </div>

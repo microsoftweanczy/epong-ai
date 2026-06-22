@@ -18,14 +18,16 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
+    // For image messages, copy the prompt (alt text) not the huge data URL
+    const textToCopy = imageMatch ? imageMatch[1] : message.content
     try {
-      await navigator.clipboard.writeText(message.content)
+      await navigator.clipboard.writeText(textToCopy)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Fallback for older browsers / non-secure context
       const ta = document.createElement('textarea')
-      ta.value = message.content
+      ta.value = textToCopy
       ta.style.position = 'fixed'
       ta.style.opacity = '0'
       document.body.appendChild(ta)
@@ -60,15 +62,31 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
   // Assistant — plain text with action buttons (copy + retry)
   const showActions = !streaming && message.content.length > 0
 
+  // Detect image content: markdown image ![alt](data:...) or ![alt](http...)
+  const imageMatch = message.content.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+  const isImageOnly = !!imageMatch
+
   return (
     <div className="group flex flex-col">
       {message.content ? (
-        <div className="md-body text-[14px] leading-relaxed text-slate-800 sm:text-[15px] dark:text-slate-200">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
-          {streaming && (
-            <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
-          )}
-        </div>
+        isImageOnly ? (
+          // Render image directly (avoids ReactMarkdown stripping data URLs)
+          <div className="text-[14px] sm:text-[15px]">
+            <img
+              src={imageMatch[2]}
+              alt={imageMatch[1] || 'Generated image'}
+              className="max-w-full rounded-2xl border border-slate-200/60 shadow-md dark:border-slate-700/60"
+              style={{ maxHeight: '512px' }}
+            />
+          </div>
+        ) : (
+          <div className="md-body text-[14px] leading-relaxed text-slate-800 sm:text-[15px] dark:text-slate-200">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+            {streaming && (
+              <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
+            )}
+          </div>
+        )
       ) : (
         <ThinkingDots />
       )}
