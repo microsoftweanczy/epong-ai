@@ -46,30 +46,47 @@ export async function POST(req: NextRequest) {
   const incoming = Array.isArray(body.messages) ? body.messages : []
   const attachments = body.attachments || []
 
-  // ── Process attachments: analyze images + extract file text ──
+  // ── Process attachments: analyze images/videos/docs via VLM + extract text ──
   let attachmentContext = ''
   if (attachments.length > 0) {
     const parts: string[] = []
     for (const att of attachments) {
-      if (att.type === 'image' && att.dataUrl) {
-        // Analyze image via VLM
+      // Images, videos, and binary docs (PDF/DOCX) → analyze via VLM
+      if ((att.type === 'image' || att.type === 'video' || att.type === 'file') && att.dataUrl) {
         try {
           const visionRes = await fetch(`${req.nextUrl.origin}/api/vision`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              image: att.dataUrl,
-              question: 'Jelaskan gambar ini secara detail dalam Bahasa Indonesia.',
+              dataUrl: att.dataUrl,
+              mediaType: att.type,
+              name: att.name,
+              question:
+                att.type === 'image'
+                  ? 'Jelaskan gambar ini secara detail dalam Bahasa Indonesia.'
+                  : att.type === 'video'
+                  ? 'Jelaskan apa yang terjadi dalam video ini secara detail dalam Bahasa Indonesia.'
+                  : 'Ringkas dan jelaskan isi dokumen ini secara detail dalam Bahasa Indonesia.',
             }),
           })
           if (visionRes.ok) {
             const vData = await visionRes.json()
-            parts.push(`[Gambar: ${att.name}]\nDeskripsi: ${vData.description}`)
+            const label =
+              att.type === 'image' ? 'Gambar' : att.type === 'video' ? 'Video' : 'Dokumen'
+            parts.push(`[${label}: ${att.name}]\nDeskripsi: ${vData.description}`)
+          } else {
+            // VLM failed — if it's a text-based file with textContent, use that
+            if (att.textContent) {
+              parts.push(`[File: ${att.name}]\nKonten:\n${att.textContent.slice(0, 3000)}`)
+            } else {
+              parts.push(`[${att.name} — gagal dianalisis]`)
+            }
           }
         } catch {
-          parts.push(`[Gambar: ${att.name} — gagal dianalisis]`)
+          parts.push(`[${att.name} — gagal dianalisis]`)
         }
       } else if (att.type === 'file' && att.textContent) {
+        // Plain text files — inject content directly (no VLM needed)
         parts.push(`[File: ${att.name}]\nKonten:\n${att.textContent.slice(0, 3000)}`)
       }
     }

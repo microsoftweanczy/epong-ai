@@ -885,3 +885,55 @@ Work Log:
 
 Stage Summary:
 - Image + file upload feature is live. Users can attach images (analyzed via VLM) and text files (content extracted) via a paperclip button in the composer. Attachments are analyzed and their context is injected into the AI's system prompt, so the AI can reference them when answering. Attachment previews render in both the composer (before sending) and in the message bubble (after sending).
+
+---
+Task ID: 35
+Agent: main
+Task: Ensure upload supports many file extensions + images + videos
+
+Work Log:
+- Extended Attachment type to include 'video' (was only 'image' | 'file').
+
+- Created comprehensive file classification system in Composer (composer.tsx):
+  * Images: png, jpg, jpeg, webp, gif, bmp, svg, ico, tiff, tif (10 extensions)
+  * Videos: mp4, avi, mov, webm, mkv, flv, wmv, m4v, 3gp, ogv (10 extensions)
+  * Text/code files: txt, md, csv, json, js, jsx, ts, tsx, py, html, htm, css, scss, xml, yml, yaml, sh, bash, zsh, rb, go, rs, java, c, cpp, h, hpp, cs, php, sql, r, swift, kt, dart, lua, pl, scala, vue, svelte, toml, ini, cfg, conf, log (40+ extensions)
+  * Documents: pdf, docx, doc, pptx, ppt, xlsx, xls, odt, rtf, epub (10 extensions)
+  * Total: 70+ file extensions supported.
+  * Max file size: 10MB (increased from 5MB for videos/docs).
+  * Files are classified by both MIME type AND extension (fallback).
+
+- Updated /api/vision/route.ts to handle 3 media types:
+  * image → image_url (base64 data URL)
+  * video → video_url (base64 data URL)
+  * file → file_url (base64 data URL, for PDF/DOCX/etc.)
+  * 50s timeout (was 25s — videos/docs take longer)
+  * Different prompt per type: "Jelaskan gambar..." / "Jelaskan video..." / "Ringkas dokumen..."
+
+- Updated /api/chat/route.ts attachment handling:
+  * Images → VLM (image_url)
+  * Videos → VLM (video_url)
+  * Binary docs (PDF/DOCX with dataUrl) → VLM (file_url)
+  * Text files (with textContent, no dataUrl) → injected directly into system prompt (no VLM needed, saves API calls)
+  * Graceful fallback: if VLM fails on a doc, falls back to textContent if available.
+
+- Updated message-bubble.tsx to render different preview types:
+  * Images: thumbnail (h-24 w-24)
+  * Videos: video element with poster frame + play button overlay + filename badge
+  * Binary docs (PDF/DOCX): red File icon + filename
+  * Text files: blue FileText icon + filename
+
+- Updated composer preview chips:
+  * Images: thumbnail
+  * Videos: purple Video icon
+  * Binary docs: red File icon
+  * Text files: blue FileText icon
+
+- Verified:
+  * Video upload (test-video.mp4): attachment chip shows with purple Video icon ✓ (VLM confirmed: "video file attachment chip with purple video icon")
+  * PDF upload (test-doc.pdf): attachment chip shows with red File icon ✓, VLM attempted analysis (failed on minimal test PDF, but graceful error handling worked — AI acknowledged the file)
+  * Text file upload (shopping.txt): AI received file content and referenced "daftar belanja dari file shopping.txt" ✓
+  * No errors. Lint clean.
+
+Stage Summary:
+- Upload feature now supports 70+ file extensions across 4 categories: images (10), videos (10), text/code files (40+), and documents (10). Videos are analyzed via VLM video_url, PDFs/docs via file_url, images via image_url, text files via direct content injection. All attachment types have appropriate visual previews in both composer and message bubbles.

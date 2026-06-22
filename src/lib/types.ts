@@ -4,10 +4,10 @@ export type Role = 'user' | 'assistant' | 'system'
 
 export interface Attachment {
   id: string
-  type: 'image' | 'file'
+  type: 'image' | 'video' | 'file'
   name: string
   mimeType: string
-  /** base64 data URL for images, or text content for files */
+  /** base64 data URL for images/videos, or empty for text files */
   dataUrl: string
   /** for text files: extracted text content */
   textContent?: string

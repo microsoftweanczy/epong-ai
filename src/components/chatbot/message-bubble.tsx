@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Copy, Check, RefreshCw, FileText } from 'lucide-react'
+import { Copy, Check, RefreshCw, FileText, Video, File } from 'lucide-react'
 import type { ChatMessage } from '@/lib/types'
 import { formatTime } from '@/lib/format'
 
@@ -61,7 +61,33 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry }: Props) {
                       alt={att.name}
                       className="h-24 w-24 object-cover sm:h-28 sm:w-28"
                     />
+                  ) : att.type === 'video' ? (
+                    <div className="relative flex h-24 w-32 items-center justify-center bg-slate-900 sm:h-28 sm:w-36">
+                      <video
+                        src={att.dataUrl}
+                        className="h-full w-full object-cover opacity-80"
+                        muted
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow">
+                          <Video className="h-4 w-4 text-slate-700" />
+                        </div>
+                      </div>
+                      <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate rounded bg-black/50 px-1 py-0.5 text-[9px] text-white">
+                        {att.name}
+                      </span>
+                    </div>
+                  ) : att.dataUrl ? (
+                    // Binary doc (PDF/DOCX) — show file icon
+                    <div className="flex h-16 w-32 items-center gap-1.5 px-2.5 py-2">
+                      <File className="h-5 w-5 shrink-0 text-red-500" />
+                      <span className="truncate text-[11px] text-slate-600 dark:text-slate-300">
+                        {att.name}
+                      </span>
+                    </div>
                   ) : (
+                    // Text file
                     <div className="flex h-16 w-32 items-center gap-1.5 px-2.5 py-2">
                       <FileText className="h-5 w-5 shrink-0 text-[#0A84FF]" />
                       <span className="truncate text-[11px] text-slate-600 dark:text-slate-300">

@@ -1,7 +1,10 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { ArrowUp, Square, Shirt, MessageSquare, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
+import {
+  ArrowUp, Square, Shirt, MessageSquare, Paperclip, X,
+  FileText, Image as ImageIcon, Video, File,
+} from 'lucide-react'
 import type { Attachment } from '@/lib/types'
 
 export type ChatMode = 'chat' | 'image'
@@ -14,14 +17,38 @@ interface Props {
   onToggleMode: () => void
 }
 
-const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']
-const ACCEPTED_TEXT_TYPES = [
-  'text/plain', 'text/markdown', 'text/csv', 'application/json',
-  'application/javascript', 'text/javascript', 'text/html', 'text/css',
-  'text/x-python', 'application/x-python-code',
-]
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+// ── File type classification ──
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'ico', 'tiff', 'tif']
+const IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/bmp', 'image/svg+xml', 'image/tiff', 'image/x-icon']
+const VIDEO_EXTS = ['mp4', 'avi', 'mov', 'webm', 'mkv', 'flv', 'wmv', 'm4v', '3gp', 'ogv']
+const VIDEO_MIMES = ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-flv', 'video/x-ms-wmv', 'video/x-m4v', 'video/3gpp', 'video/ogg']
+const TEXT_EXTS = ['txt', 'md', 'markdown', 'csv', 'json', 'js', 'jsx', 'ts', 'tsx', 'py', 'html', 'htm', 'css', 'scss', 'xml', 'yml', 'yaml', 'sh', 'bash', 'zsh', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'php', 'sql', 'r', 'swift', 'kt', 'dart', 'lua', 'pl', 'scala', 'vue', 'svelte', 'toml', 'ini', 'cfg', 'conf', 'log']
+const TEXT_MIMES = ['text/plain', 'text/markdown', 'text/csv', 'application/json', 'application/javascript', 'text/javascript', 'application/x-javascript', 'text/html', 'text/css', 'text/xml', 'application/xml', 'application/x-yaml', 'text/yaml', 'application/x-sh', 'application/x-python-code', 'text/x-python']
+const DOC_EXTS = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'odt', 'rtf', 'epub']
+const DOC_MIMES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'application/vnd.oasis.opendocument.text', 'application/rtf', 'application/epub+zip']
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB (generous for videos/docs)
 const MAX_TEXT_LENGTH = 50000
+const ACCEPT_ATTR = [
+  ...IMAGE_EXTS.map((e) => `.${e}`),
+  ...VIDEO_EXTS.map((e) => `.${e}`),
+  ...TEXT_EXTS.map((e) => `.${e}`),
+  ...DOC_EXTS.map((e) => `.${e}`),
+].join(',')
+
+function getExt(name: string): string {
+  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
+  return m ? m[1] : ''
+}
+
+function classifyFile(file: File): 'image' | 'video' | 'text' | 'doc' | 'unknown' {
+  const ext = getExt(file.name)
+  if (IMAGE_MIMES.includes(file.type) || IMAGE_EXTS.includes(ext)) return 'image'
+  if (VIDEO_MIMES.includes(file.type) || VIDEO_EXTS.includes(ext)) return 'video'
+  if (TEXT_MIMES.includes(file.type) || TEXT_EXTS.includes(ext)) return 'text'
+  if (DOC_MIMES.includes(file.type) || DOC_EXTS.includes(ext)) return 'doc'
+  return 'unknown'
+}
 
 function uid() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -67,34 +94,36 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
 
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_SIZE) {
-        alert(`File "${file.name}" terlalu besar (maks 5MB)`)
+        alert(`File "${file.name}" terlalu besar (maks 10MB)`)
         continue
       }
 
-      const isImage = ACCEPTED_IMAGE_TYPES.includes(file.type) || file.type.startsWith('image/')
-      const isText = ACCEPTED_TEXT_TYPES.includes(file.type) || file.type.startsWith('text/') || file.name.match(/\.(txt|md|csv|json|js|ts|py|html|css|xml|yml|yaml|sh)$/i)
+      const kind = classifyFile(file)
 
-      if (isImage) {
+      if (kind === 'image') {
         const dataUrl = await readFileAsDataUrl(file)
         newAttachments.push({
-          id: uid(),
-          type: 'image',
-          name: file.name,
-          mimeType: file.type,
-          dataUrl,
+          id: uid(), type: 'image', name: file.name, mimeType: file.type || 'image/png', dataUrl,
         })
-      } else if (isText) {
+      } else if (kind === 'video') {
+        const dataUrl = await readFileAsDataUrl(file)
+        newAttachments.push({
+          id: uid(), type: 'video', name: file.name, mimeType: file.type || 'video/mp4', dataUrl,
+        })
+      } else if (kind === 'text') {
         const textContent = await readFileAsText(file)
         newAttachments.push({
-          id: uid(),
-          type: 'file',
-          name: file.name,
-          mimeType: file.type || 'text/plain',
-          dataUrl: '',
-          textContent: textContent.slice(0, MAX_TEXT_LENGTH),
+          id: uid(), type: 'file', name: file.name, mimeType: file.type || 'text/plain',
+          dataUrl: '', textContent: textContent.slice(0, MAX_TEXT_LENGTH),
+        })
+      } else if (kind === 'doc') {
+        // PDF/DOCX/PPTX/XLSX → send as binary to VLM via file_url
+        const dataUrl = await readFileAsDataUrl(file)
+        newAttachments.push({
+          id: uid(), type: 'file', name: file.name, mimeType: file.type || 'application/octet-stream', dataUrl,
         })
       } else {
-        alert(`Tipe file "${file.name}" tidak didukung. Gunakan gambar atau file teks.`)
+        alert(`Tipe file "${file.name}" tidak didukung. Didukung: gambar, video, PDF, dokumen, file teks/kode.`)
       }
     }
 
@@ -140,8 +169,12 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
                     alt={att.name}
                     className="h-8 w-8 rounded object-cover"
                   />
+                ) : att.type === 'video' ? (
+                  <Video className="h-5 w-5 text-purple-500" />
+                ) : att.dataUrl ? (
+                  <File className="h-5 w-5 text-red-500" />
                 ) : (
-                  <FileText className="h-4 w-4 text-[#0A84FF]" />
+                  <FileText className="h-5 w-5 text-[#0A84FF]" />
                 )}
                 <span className="max-w-[120px] truncate text-[11px] text-slate-600 dark:text-slate-300">
                   {att.name}
@@ -165,8 +198,8 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={busy}
-                aria-label="Lampirkan file atau gambar"
-                title="Lampirkan gambar atau file teks"
+                aria-label="Lampirkan file, gambar, atau video"
+                title="Lampirkan gambar, video, PDF, dokumen, atau file teks/kode"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-900/8 hover:text-[#0A84FF] disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/10 sm:h-9 sm:w-9"
               >
                 <Paperclip className="h-[18px] w-[18px]" />
@@ -176,7 +209,7 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
               ref={fileInputRef}
               type="file"
               multiple
-              accept={`${ACCEPTED_IMAGE_TYPES.join(',')},${ACCEPTED_TEXT_TYPES.join(',')},.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.xml,.yml,.yaml,.sh`}
+              accept={ACCEPT_ATTR}
               className="hidden"
               onChange={(e) => {
                 handleFiles(e.target.files)
