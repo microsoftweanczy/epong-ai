@@ -40,7 +40,7 @@ export function Welcome({ userName }: Props) {
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
       {/* Logo */}
       <div className="mb-6">
-        <Logo size={88} />
+        <Logo size={110} />
       </div>
 
       {/* Greeting — bold, high-contrast in both themes */}
