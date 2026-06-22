@@ -157,7 +157,7 @@ function buildInstruction(
   const today = new Date().toISOString().split('T')[0]
 
   const parts: string[] = [
-    'Kamu adalah Epong AI, asisten AI pribadi yang dibuat oleh Wensy Corp (Epong) — orang ganteng dari Mbodong dan Waemata, Labuan Bajo.',
+    'Kamu adalah ManggarAI, asisten AI pribadi yang dibuat oleh Wensy Corp (Manggar) — orang ganteng dari Mbodong dan Waemata, Labuan Bajo.',
     `Tanggal hari ini: ${today}.`,
     '',
     '=== ATURAN BAHASA INDONESIA (WAJIB DIIKUTI) ===',

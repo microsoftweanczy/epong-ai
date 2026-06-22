@@ -122,7 +122,7 @@ export function exportConversationAsMarkdown(
   ]
   for (const msg of messages) {
     const time = new Date(msg.createdAt).toLocaleString('id-ID')
-    const role = msg.role === 'user' ? '👤 **Anda**' : '🤖 **Epong AI**'
+    const role = msg.role === 'user' ? '👤 **Anda**' : '🤖 **ManggarAI**'
     lines.push(`### ${role} — ${time}`)
     lines.push('')
     lines.push(msg.content)
@@ -142,7 +142,7 @@ export function exportConversationAsText(
   ]
   for (const msg of messages) {
     const time = new Date(msg.createdAt).toLocaleString('id-ID')
-    const role = msg.role === 'user' ? 'Anda' : 'Epong AI'
+    const role = msg.role === 'user' ? 'Anda' : 'ManggarAI'
     lines.push(`[${time}] ${role}:`)
     lines.push(msg.content)
     lines.push('')

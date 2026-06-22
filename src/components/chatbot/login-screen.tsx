@@ -100,7 +100,7 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
             <Logo size={72} />
           </div>
           <h1 className="text-[24px] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[28px]">
-            Epong AI
+            ManggarAI
           </h1>
           <p className="mt-2 text-[15px] text-slate-600 dark:text-slate-300">
             Asisten AI pribadi yang mengenal dan mengingat Anda.

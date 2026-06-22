@@ -1,6 +1,6 @@
 {
-  "name": "Epong AI — Personal Assistant",
-  "short_name": "Epong AI",
+  "name": "ManggarAI — Personal Assistant",
+  "short_name": "ManggarAI",
   "description": "A beautiful personal AI chatbot powered by GLM.",
   "start_url": "/",
   "scope": "/",

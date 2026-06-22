@@ -413,7 +413,7 @@ export default function ChatApp() {
           </button>
           <div className="min-w-0 flex-1 px-1">
             <h1 className="truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white">
-              {activeConv?.title || 'Epong AI'}
+              {activeConv?.title || 'ManggarAI'}
             </h1>
           </div>
           <IncognitoToggle />

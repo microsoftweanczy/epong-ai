@@ -303,7 +303,7 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
     ? 'Deskripsikan gambar yang ingin dibuat…'
     : attachments.length > 0
     ? 'Tulis pesan atau kirim kosong untuk analisis lampiran…'
-    : 'Tulis pesan untuk Epong AI…'
+    : 'Tulis pesan untuk ManggarAI…'
 
   return (
     <div className="safe-bottom mx-2 mb-2 mt-1 sm:mx-3 sm:mb-3">

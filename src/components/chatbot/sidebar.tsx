@@ -76,7 +76,7 @@ export function Sidebar({
             <div className="flex items-center gap-2 sm:gap-2.5">
               <Logo size={32} />
               <span className="text-[16px] font-semibold tracking-[-0.02em] text-slate-800 sm:text-[18px] dark:text-slate-100">
-                Epong AI
+                ManggarAI
               </span>
             </div>
             <button

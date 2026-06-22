@@ -164,7 +164,7 @@ export function SettingsPanel({ open, onClose }: Props) {
           </Section>
 
           {/* ── AI Preferences ── */}
-          <Section icon={SlidersHorizontal} title="Preferensi AI" subtitle="Sesuaikan gaya respons Epong AI">
+          <Section icon={SlidersHorizontal} title="Preferensi AI" subtitle="Sesuaikan gaya respons ManggarAI">
             <div className="space-y-4">
               <Field label="Gaya bahasa">
                 <SegmentedOptions
@@ -236,7 +236,7 @@ export function SettingsPanel({ open, onClose }: Props) {
           <Section
             icon={Brain}
             title="Manajemen Memori"
-            subtitle="Hal-hal yang Epong AI ingat tentang Anda. Tambahkan fakta, preferensi, atau konteks penting."
+            subtitle="Hal-hal yang ManggarAI ingat tentang Anda. Tambahkan fakta, preferensi, atau konteks penting."
           >
             {/* Add memory */}
             <div className="mb-3 rounded-2xl bg-slate-100 p-3 dark:bg-slate-800/60">
@@ -273,7 +273,7 @@ export function SettingsPanel({ open, onClose }: Props) {
             {/* Memory list */}
             {memory.length === 0 && (
               <p className="py-4 text-center text-[13px] text-slate-400">
-                Belum ada memori. Tambahkan agar Epong AI mengenal Anda lebih baik.
+                Belum ada memori. Tambahkan agar ManggarAI mengenal Anda lebih baik.
               </p>
             )}
             <div className="space-y-2">
@@ -342,7 +342,7 @@ export function SettingsPanel({ open, onClose }: Props) {
           <Section
             icon={Brain}
             title="Profil Perilaku"
-            subtitle="Gambaran bagaimana Anda biasanya berinteraksi. Epong AI akan menyesuaikan gayanya."
+            subtitle="Gambaran bagaimana Anda biasanya berinteraksi. ManggarAI akan menyesuaikan gayanya."
           >
             {editingProfile ? (
               <div className="rounded-2xl bg-slate-100 p-3 dark:bg-slate-800/60">
