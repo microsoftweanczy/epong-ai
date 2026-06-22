@@ -42,7 +42,8 @@ export default function ChatApp() {
 
   // keep theme in sync
   useThemeSync()
-  const { prefs, memory, loadMemory, setUserId, addMemory } =
+  const { prefs, memory, loadMemory, setUserId, addMemory, behaviorProfile,
+    relationshipDepth, setRelationshipDepth, emotionalProfile, setEmotionalProfile } =
     useSettings()
 
   // sync settings userId + load memory when user changes
@@ -240,6 +241,10 @@ export default function ChatApp() {
           body: JSON.stringify({
             messages: apiMessages,
             prefs,
+            memory,
+            behaviorProfile,
+            relationshipDepth,
+            emotionalProfile,
           }),
           signal: controller.signal,
         })
@@ -478,7 +483,7 @@ export default function ChatApp() {
 async function extractMemories(
   messages: ApiMessage[],
   existingMemory: MemoryNote[],
-  addMemory: (content: string, category?: MemoryNote['category']) => Promise<void>
+  addMemory: (content: string, category?: MemoryNote['category'], level?: any, priority?: number) => Promise<void>
 ) {
   try {
     const res = await fetch('/api/extract-memory', {
@@ -488,22 +493,25 @@ async function extractMemories(
     })
     if (!res.ok) return
     const data = await res.json()
-    const memories: Array<{ content: string; category: string }> =
+    const memories: Array<{ content: string; category: string; level?: string; priority?: number }> =
       data.memories || []
     if (memories.length === 0) return
 
     // Dedupe against existing memory (case-insensitive substring check)
     const existingLower = existingMemory.map((m) => m.content.toLowerCase())
-    let added = 0
     for (const m of memories) {
       const contentLower = m.content.toLowerCase()
       const isDuplicate = existingLower.some(
         (e) => e.includes(contentLower) || contentLower.includes(e)
       )
       if (!isDuplicate) {
-        await addMemory(m.content, m.category as MemoryNote['category'])
+        await addMemory(
+          m.content,
+          m.category as MemoryNote['category'],
+          (m.level as any) || 'long-term',
+          m.priority || 5
+        )
         existingLower.push(contentLower)
-        added++
       }
     }
     // Silent — no toast popup. Memory extraction is best-effort, never block the chat.

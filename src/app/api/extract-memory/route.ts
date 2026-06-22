@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
-import type { ApiMessage, MemoryNote } from '@/lib/types'
+import type { ApiMessage } from '@/lib/types'
+import type { MemoryNote } from '@/lib/settings'
 import { completeChat } from '@/lib/ai-providers'
+import { classifyMemoryLevel } from '@/lib/memory-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
 
 function parseMemories(
   text: string
-): Array<{ content: string; category: string }> {
+): Array<{ content: string; category: string; level: string; priority: number }> {
   try {
     const match = text.match(/\[[\s\S]*?\]/)
     if (!match) return []
@@ -96,10 +98,17 @@ function parseMemories(
           m.content.trim().length > 0 &&
           VALID_CATEGORIES.includes(m.category)
       )
-      .map((m: any) => ({
-        content: String(m.content).trim().slice(0, MAX_MEMORY_LENGTH),
-        category: m.category,
-      }))
+      .map((m: any) => {
+        const content = String(m.content).trim().slice(0, MAX_MEMORY_LENGTH)
+        const category = m.category
+        const { level, priority } = classifyMemoryLevel(content, category)
+        return {
+          content,
+          category,
+          level,
+          priority,
+        }
+      })
       .slice(0, MAX_MEMORIES_PER_EXTRACTION)
   } catch {
     return []

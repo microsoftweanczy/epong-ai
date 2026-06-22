@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
 import { streamChat } from '@/lib/ai-providers'
-import type { Preferences } from '@/lib/settings'
+import type { Preferences, MemoryNote } from '@/lib/settings'
+import { buildMemoryPrompt } from '@/lib/memory-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -48,7 +49,14 @@ async function quickWebSearch(query: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { messages?: ApiMessage[]; prefs?: Preferences | null }
+  let body: {
+    messages?: ApiMessage[]
+    prefs?: Preferences | null
+    memory?: MemoryNote[]
+    behaviorProfile?: string
+    relationshipDepth?: number
+    emotionalProfile?: string
+  }
   try {
     body = await req.json()
   } catch {
@@ -56,10 +64,26 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
-  const systemInstruction = buildInstruction(body.prefs)
-
-  // Check if web search needed — but run it FAST (single query, 3 results, no page reading)
   const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
+  const userQuery = lastUserMsg?.content || ''
+
+  // Build system instruction with memory engine
+  const systemInstruction = buildInstruction(
+    body.prefs,
+    body.memory,
+    body.behaviorProfile
+  )
+
+  // Inject hierarchical memory via memory engine
+  const memoryPrompt = buildMemoryPrompt(
+    body.memory || [],
+    userQuery,
+    body.relationshipDepth || 0,
+    body.emotionalProfile || '',
+    body.behaviorProfile || ''
+  )
+
+  // Check if web search needed
   let searchContext = ''
   let searchFailed = false
 
@@ -71,14 +95,14 @@ export async function POST(req: NextRequest) {
     if (!searchContext) searchFailed = true
   }
 
-  let fullSystem: string
+  // Combine: system instruction + memory + search context
+  const parts = [systemInstruction, memoryPrompt]
   if (searchContext) {
-    fullSystem = `${systemInstruction}\n\nREAL-TIME WEB SEARCH RESULTS:\n${searchContext}\n\nUse this data. Cite sources. Current date: ${new Date().toISOString().split('T')[0]}`
+    parts.push(`\n\nHASIL PENCARIAN WEB REALTIME:\n${searchContext}\nGunakan data ini. Sebut sumbernya. Tanggal: ${new Date().toISOString().split('T')[0]}`)
   } else if (searchFailed) {
-    fullSystem = `${systemInstruction}\n\nNOTE: Web search was needed but failed. Do NOT use training data for current events. Tell user: "Maaf, pencarian internet sedang bermasalah, coba lagi sebentar."`
-  } else {
-    fullSystem = systemInstruction
+    parts.push('\n\nCATATAN: Pencarian web gagal. Jangan gunakan data lama untuk hal terkini. Katakan: "Maaf, pencarian internet bermasalah, coba lagi."')
   }
+  const fullSystem = parts.filter(Boolean).join('')
 
   const messages: ApiMessage[] = [
     { role: 'system', content: fullSystem },
