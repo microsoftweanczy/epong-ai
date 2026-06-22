@@ -298,8 +298,16 @@ export default function ChatApp() {
                   )
                 )
               }
-              // Provider info — removed per user request (no longer shown in chat)
-              // if (json.provider) { ... }
+              // Provider info — show tiny obfuscated model code below response
+              if (json.modelCode) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsg.id
+                      ? { ...m, content: accumulated + `\n\n<sub>${json.modelCode}</sub>` }
+                      : m
+                  )
+                )
+              }
             } catch {
               /* ignore */
             }

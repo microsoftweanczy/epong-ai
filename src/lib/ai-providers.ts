@@ -102,6 +102,15 @@ function label(model: string): string {
   return model
 }
 
+/** Short obfuscated code for developer reference (shows which API answered) */
+function modelCode(model: string): string {
+  if (model === M_GPT4O_MINI) return 'g4o'
+  if (model === M_R1) return 'd-r1'
+  if (model === M_V3) return 'd-v3'
+  if (model === M_LLAMA) return 'l70'
+  return '?'
+}
+
 // ── Quality check ──
 function valid(text: string): boolean {
   if (!text || text.trim().length < 3) return false
@@ -115,6 +124,7 @@ function valid(text: string): boolean {
 export interface ChatResult {
   success: boolean
   provider: string
+  modelCode: string
   error?: string
 }
 
@@ -131,7 +141,7 @@ export async function streamChat(
   // Tier 1: GitHub Models (intent-based primary)
   try {
     await streamGH(trimmed, onDelta, model)
-    return { success: true, provider: label(model) }
+    return { success: true, provider: label(model), modelCode: modelCode(model) }
   } catch (e: any) {
     console.error(`[ai] ${label(model)} failed:`, e?.message)
   }
@@ -139,7 +149,7 @@ export async function streamChat(
   // Tier 2: Llama-3.3-70B (GitHub alt)
   try {
     await streamGH(trimmed, onDelta, M_LLAMA)
-    return { success: true, provider: label(M_LLAMA) }
+    return { success: true, provider: label(M_LLAMA), modelCode: modelCode(M_LLAMA) }
   } catch (e: any) {
     console.error('[ai] Llama failed:', e?.message)
   }
@@ -147,7 +157,7 @@ export async function streamChat(
   // Tier 3: GLM via DashScope
   try {
     await streamGLM(trimmed, onDelta)
-    return { success: true, provider: 'GLM' }
+    return { success: true, provider: 'GLM', modelCode: 'glm' }
   } catch (e: any) {
     console.error('[ai] GLM failed:', e?.message)
   }
@@ -156,19 +166,19 @@ export async function streamChat(
   if (process.env.OPENROUTER_API_KEY) {
     try {
       await streamOR(trimmed, onDelta)
-      return { success: true, provider: 'OpenRouter' }
+      return { success: true, provider: 'OpenRouter', modelCode: 'or' }
     } catch (e: any) {
       console.error('[ai] OpenRouter failed:', e?.message)
     }
   }
 
-  return { success: false, provider: '', error: 'Semua API sedang bermasalah. Coba lagi nanti.' }
+  return { success: false, provider: '', modelCode: '', error: 'Semua API sedang bermasalah. Coba lagi nanti.' }
 }
 
 // ── Public API: completeChat ──
 export async function completeChat(
   messages: ApiMessage[]
-): Promise<{ text: string; provider: string }> {
+): Promise<{ text: string; provider: string; modelCode: string }> {
   const trimmed = messages.slice(-MAX_HISTORY)
   const lastUser = [...trimmed].reverse().find((m) => m.role === 'user')
   const intent = lastUser ? classify(lastUser.content) : 'simple'
@@ -176,27 +186,27 @@ export async function completeChat(
 
   try {
     const text = await completeGH(trimmed, model)
-    if (valid(text)) return { text, provider: label(model) }
+    if (valid(text)) return { text, provider: label(model), modelCode: modelCode(model) }
   } catch (e: any) { console.error(`[ai] ${label(model)} complete failed:`, e?.message) }
 
   try {
     const text = await completeGH(trimmed, M_LLAMA)
-    if (valid(text)) return { text, provider: label(M_LLAMA) }
+    if (valid(text)) return { text, provider: label(M_LLAMA), modelCode: modelCode(M_LLAMA) }
   } catch (e: any) { console.error('[ai] Llama complete failed:', e?.message) }
 
   try {
     const text = await completeGLM(trimmed)
-    return { text, provider: 'GLM' }
+    return { text, provider: 'GLM', modelCode: 'glm' }
   } catch (e: any) { console.error('[ai] GLM complete failed:', e?.message) }
 
   if (process.env.OPENROUTER_API_KEY) {
     try {
       const text = await completeOR(trimmed)
-      return { text, provider: 'OpenRouter' }
+      return { text, provider: 'OpenRouter', modelCode: 'or' }
     } catch (e: any) { console.error('[ai] OR complete failed:', e?.message) }
   }
 
-  return { text: '', provider: '' }
+  return { text: '', provider: '', modelCode: '' }
 }
 
 // ── SSE parser ──

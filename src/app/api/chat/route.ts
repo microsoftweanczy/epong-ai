@@ -126,8 +126,7 @@ export async function POST(req: NextRequest) {
       if (!result.success) {
         send({ content: `*(Maaf, AI sedang bermasalah. ${result.error})*` })
       } else {
-        // Send the provider name so the UI can display which API was used
-        send({ provider: result.provider })
+        send({ provider: result.provider, modelCode: result.modelCode })
       }
 
       controller.enqueue(encoder.encode('data: [DONE]\n\n'))
