@@ -676,3 +676,18 @@ Work Log:
 
 Stage Summary:
 - Image generation now uses Qwen z-image-turbo via DashScope. 4-5x faster than the previous z-ai SDK (8s vs 30-42s). No more 502 gateway timeouts. The API key is built into the route with env-var override support (QWEN_IMAGE_API_KEY).
+
+---
+Task ID: 28
+Agent: main
+Task: Remove z-ai SDK image API, set z-image-turbo as primary
+
+Work Log:
+- Verified the codebase: NO z-ai SDK image generation code remains in src/. The grep for `images.generations` and `zai.images` found zero matches in actual code (only historical mentions in worklog.md).
+- The /api/generate-image/route.ts already uses Qwen z-image-turbo via DashScope as the SOLE image API (no fallback to z-ai SDK).
+- Removed leftover custom icon files (image-gen-icon.png, image-gen-icon@2x.png) — already done in Task 26.
+- Added QWEN_IMAGE_API_KEY to .env.example with documentation.
+- Verified: lint clean, API returns HTTP 200 in 8.2s, no z-ai image code anywhere.
+
+Stage Summary:
+- z-image-turbo is the primary and ONLY image generation API. No z-ai SDK image code remains. The route is clean and fast (8s generation).
