@@ -35,11 +35,18 @@ const DEFAULT_PREFS: Preferences = {
 // (Supabase when available, localStorage fallback)
 // ────────────────────────────────────────────────────────────
 
+export type MemoryLevel = 'core' | 'long-term' | 'contextual' | 'episodic'
+
 export interface MemoryNote {
   id: string
   content: string
   category: 'fakta' | 'preferensi' | 'tujuan' | 'konteks'
   createdAt: string
+  level?: MemoryLevel
+  priority?: number // 1-10, higher = more important
+  emotionalTone?: string // e.g. "senang", "sedih", "netral"
+  lastAccessed?: string
+  accessCount?: number
 }
 
 interface SettingsState {
@@ -53,13 +60,22 @@ interface SettingsState {
   memory: MemoryNote[]
   memoryLoaded: boolean
   loadMemory: () => Promise<void>
-  addMemory: (content: string, category?: MemoryNote['category']) => Promise<void>
+  addMemory: (content: string, category?: MemoryNote['category'], level?: MemoryLevel, priority?: number) => Promise<void>
   updateMemory: (id: string, content: string) => Promise<void>
   deleteMemory: (id: string) => Promise<void>
+  touchMemory: (id: string) => void // update lastAccessed + accessCount
 
-  // auto-generated behavior profile (summary of how the user tends to interact)
+  // auto-generated behavior profile
   behaviorProfile: string
   setBehaviorProfile: (s: string) => void
+
+  // relationship depth (0-100) — how intimate the AI-user bond is
+  relationshipDepth: number
+  setRelationshipDepth: (n: number) => void
+
+  // user's emotional patterns (learned over time)
+  emotionalProfile: string
+  setEmotionalProfile: (s: string) => void
 }
 
 function uuid() {
@@ -132,7 +148,7 @@ export const useSettings = create<SettingsState>()(
         }
         set({ memory: loadLocalMemory(uid), memoryLoaded: true })
       },
-      addMemory: async (content, category = 'fakta') => {
+      addMemory: async (content, category = 'fakta', level = 'long-term', priority = 5) => {
         const uid = get().userId
         if (!uid) return
         const note: MemoryNote = {
@@ -140,6 +156,9 @@ export const useSettings = create<SettingsState>()(
           content: content.trim(),
           category,
           createdAt: new Date().toISOString(),
+          level,
+          priority,
+          accessCount: 0,
         }
         if (!note.content) return
         if (!isGuestUser(uid) && supabase) {
@@ -204,12 +223,34 @@ export const useSettings = create<SettingsState>()(
 
       behaviorProfile: '',
       setBehaviorProfile: (s) => set({ behaviorProfile: s }),
+
+      relationshipDepth: 0,
+      setRelationshipDepth: (n) => set({ relationshipDepth: Math.max(0, Math.min(100, n)) }),
+
+      emotionalProfile: '',
+      setEmotionalProfile: (s) => set({ emotionalProfile: s }),
+
+      touchMemory: (id) => {
+        set({
+          memory: get().memory.map((m) =>
+            m.id === id
+              ? { ...m, lastAccessed: new Date().toISOString(), accessCount: (m.accessCount || 0) + 1 }
+              : m
+          ),
+        })
+        const uid = get().userId
+        if (uid && (isGuestUser(uid) || !supabase)) {
+          saveLocalMemory(uid, get().memory)
+        }
+      },
     }),
     {
       name: 'epong-settings',
       partialize: (s) => ({
         prefs: s.prefs,
         behaviorProfile: s.behaviorProfile,
+        relationshipDepth: s.relationshipDepth,
+        emotionalProfile: s.emotionalProfile,
       }),
     }
   )

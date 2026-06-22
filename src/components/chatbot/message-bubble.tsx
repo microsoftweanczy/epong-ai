@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useRef } from 'react'
+import { memo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
   Copy, Check, RefreshCw, FileText, Video, File,
@@ -27,90 +27,21 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
   const [ttsLoading, setTtsLoading] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [pinned, setPinned] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-
-  // Check pinned state on mount
-  useState(() => {
-    setPinned(isPinned(message.id))
-  })
 
   const handleCopy = async () => {
-    // For image messages, copy the prompt (alt text) not the huge data URL
-    const textToCopy = imageMatch ? imageMatch[1] : message.content
+    const textToCopy = message.content
     try {
       await navigator.clipboard.writeText(textToCopy)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Fallback for older browsers / non-secure context
-      const ta = document.createElement('textarea')
-      ta.value = textToCopy
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      try {
-        document.execCommand('copy')
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch {}
-      document.body.removeChild(ta)
-    }
-  }
-
-  // ── Text-to-Speech ──
-  const handleTTS = async () => {
-    if (playing && audioRef.current) {
-      audioRef.current.pause()
-      setPlaying(false)
-      return
-    }
-    if (audioRef.current) {
-      audioRef.current.play()
-      setPlaying(true)
-      return
-    }
-    setTtsLoading(true)
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: message.content }),
-      })
-      if (!res.ok) throw new Error('TTS failed')
-      const data = await res.json()
-      if (data.audio) {
-        const audio = new Audio(data.audio)
-        audioRef.current = audio
-        audio.onended = () => setPlaying(false)
-        audio.play()
-        setPlaying(true)
-      }
-    } catch (e: any) {
-      toast.error('Gagal membuat audio: ' + e.message)
-    } finally {
-      setTtsLoading(false)
-    }
-  }
-
-  // ── Pin / Bookmark ──
-  const handlePin = () => {
-    if (!conversationId) return
-    const nowPinned = togglePinMessage(
-      message,
-      conversationId,
-      conversationTitle || ''
-    )
-    setPinned(nowPinned)
-    toast.success(nowPinned ? 'Pesan di-pin' : 'Pin dihapus', { duration: 1500 })
+    } catch {}
   }
 
   if (isUser) {
-    // User message: right-aligned, subtle professional bubble
     const hasAttachments = message.attachments && message.attachments.length > 0
     return (
-      <div className="flex justify-end">
-        <div className="group flex max-w-[85%] flex-col items-end sm:max-w-[75%] lg:max-w-[70%]">
+      <div className="group flex justify-end">
+        <div className="flex max-w-[85%] flex-col items-end sm:max-w-[75%] lg:max-w-[70%]">
           {/* Attachment previews */}
           {hasAttachments && (
             <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
@@ -143,7 +74,6 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
                       </span>
                     </div>
                   ) : att.dataUrl ? (
-                    // Binary doc (PDF/DOCX) — show file icon
                     <div className="flex h-16 w-32 items-center gap-1.5 px-2.5 py-2">
                       <File className="h-5 w-5 shrink-0 text-red-500" />
                       <span className="truncate text-[11px] text-slate-600 dark:text-slate-300">
@@ -151,7 +81,6 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
                       </span>
                     </div>
                   ) : (
-                    // Text file
                     <div className="flex h-16 w-32 items-center gap-1.5 px-2.5 py-2">
                       <FileText className="h-5 w-5 shrink-0 text-[#0A84FF]" />
                       <span className="truncate text-[11px] text-slate-600 dark:text-slate-300">
@@ -164,24 +93,39 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
             </div>
           )}
           {message.content && (
-            <div className="font-chat rounded-2xl rounded-br-sm bg-slate-100 px-3.5 py-2 text-[14px] leading-relaxed text-slate-900 sm:px-4 sm:py-2.5 sm:text-[15px] dark:bg-slate-800 dark:text-slate-100">
+            <div className="font-chat rounded-2xl rounded-br-sm bg-[#f0f0f0] px-3.5 py-2 text-[14px] leading-relaxed text-slate-900 sm:px-4 sm:py-2.5 sm:text-[15px] dark:bg-[#2f2f2f] dark:text-slate-100">
               <div className="whitespace-pre-wrap break-words">
                 {message.content}
               </div>
             </div>
           )}
-          <span className="mr-1 mt-0.5 text-[10px] text-slate-400">
-            {formatTime(message.createdAt)}
-          </span>
+          <div className="mt-0.5 flex items-center gap-1">
+            <span className="mr-1 text-[10px] text-slate-400">
+              {formatTime(message.createdAt)}
+            </span>
+            {/* Copy button for user message */}
+            <button
+              onClick={handleCopy}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 opacity-0 transition hover:bg-slate-900/8 hover:text-slate-600 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-slate-200"
+              aria-label={copied ? 'Tersalin' : 'Salin'}
+              title={copied ? 'Tersalin' : 'Salin pesan'}
+            >
+              {copied ? (
+                <Check className="h-3 w-3 text-emerald-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Assistant — plain text with action buttons (copy + retry)
+  // Assistant — plain text with action buttons
   const showActions = !streaming && message.content.length > 0
 
-  // Detect image content: markdown image ![alt](data:...) or ![alt](http...)
+  // Detect image content
   const imageMatch = message.content.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
   const isImageOnly = !!imageMatch
 
@@ -189,7 +133,6 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
     <div className="group flex flex-col">
       {message.content ? (
         isImageOnly ? (
-          // Render image directly (avoids ReactMarkdown stripping data URLs)
           <div className="text-[14px] sm:text-[15px]">
             <img
               src={imageMatch[2]}
@@ -215,7 +158,7 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
       ) : (
         <ThinkingDots />
       )}
-      <div className="mt-1 flex items-center gap-1">
+      <div className="mt-1 flex items-center gap-0.5">
         <span className="text-[10px] text-slate-400">
           {formatTime(message.createdAt)}
         </span>
@@ -223,57 +166,24 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
           <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
             <button
               onClick={handleCopy}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
               aria-label={copied ? 'Tersalin' : 'Salin'}
               title={copied ? 'Tersalin' : 'Salin'}
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                <Check className="h-3 w-3 text-emerald-500" />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className="h-3 w-3" />
               )}
             </button>
-            {/* Text-to-Speech */}
-            <button
-              onClick={handleTTS}
-              disabled={ttsLoading}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-slate-900/8 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-slate-200 ${
-                playing ? 'text-[#0A84FF]' : 'text-slate-400'
-              }`}
-              aria-label={playing ? 'Jeda audio' : 'Bacakan dengan suara'}
-              title={playing ? 'Jeda' : 'Bacakan dengan suara'}
-            >
-              {ttsLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Volume2 className="h-3.5 w-3.5" />
-              )}
-            </button>
-            {/* Pin / Bookmark */}
-            {conversationId && (
-              <button
-                onClick={handlePin}
-                className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200 ${
-                  pinned ? 'text-amber-500' : 'text-slate-400'
-                }`}
-                aria-label={pinned ? 'Hapus pin' : 'Pin pesan'}
-                title={pinned ? 'Hapus pin' : 'Pin pesan'}
-              >
-                {pinned ? (
-                  <PinOff className="h-3.5 w-3.5" />
-                ) : (
-                  <Pin className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
             {canRetry && onRetry && (
               <button
                 onClick={() => onRetry(message.id)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-900/8 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
                 aria-label="Coba lagi"
                 title="Coba lagi"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3 w-3" />
               </button>
             )}
           </div>

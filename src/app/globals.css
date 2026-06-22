@@ -122,7 +122,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* iOS 26 — SF Pro system font stack (UI chrome) */
+    /* iOS 26 — SF Pro system font stack */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
       system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
@@ -131,6 +131,22 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* ---------- iOS 26 "Liquid Glass" design utilities ---------- */
+
+/* Safe-area insets for notched / rounded-edge devices */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Enterprise glass material — refined, subtle, professional */
 
 /* ---------- Anthropic Serif — chat & response font ---------- */
 @font-face {
@@ -149,82 +165,48 @@ textarea.font-chat {
   font-family: "Anthropic Serif", Georgia, "Times New Roman", serif;
   letter-spacing: 0;
 }
-
-/* ---------- iOS 26 "Liquid Glass" design utilities ---------- */
-
-/* Safe-area insets for notched / rounded-edge devices */
-.safe-top {
-  padding-top: env(safe-area-inset-top);
-}
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.safe-x {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* Liquid glass material — frosted, saturated, with a subtle specular edge */
 .glass {
-  background-color: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
+
 .glass-bar {
-  background-color: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* Calm professional backdrop for chat readability */
+/* Enterprise backdrop — clean, professional, like ChatGPT/Copilot */
 .mesh-bg {
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(at 15% 15%, rgba(99, 102, 241, 0.06) 0px, transparent 50%),
-    radial-gradient(at 85% 85%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
+  background-color: #ffffff;
 }
 
-/* App shell — centers & constrains the whole app on desktop/laptop.
-   On mobile/tablet: full-bleed (edge-to-edge).
-   On desktop (lg+): floating card with gaps from screen edges + rounded corners.
-   On ultra-wide (2xl+): max-width caps it so it doesn't stretch too wide. */
-.app-shell {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  margin: 0 auto;
-  border-radius: 0;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+/* Dark mode overrides for enterprise look */
+.dark .glass {
+  background-color: rgba(30, 30, 30, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
+
+.dark .glass-bar {
+  background-color: rgba(20, 20, 20, 0.90);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .mesh-bg {
+  background-color: #1a1a1a;
+}
+
 .dark .app-shell {
-  background: rgba(15, 23, 42, 0.8);
-}
-@media (min-width: 1024px) {
-  .app-shell {
-    max-width: calc(100vw - 32px);
-    border-radius: 24px;
-    box-shadow:
-      0 20px 60px rgba(15, 23, 42, 0.18),
-      0 4px 16px rgba(15, 23, 42, 0.08);
-  }
-}
-@media (min-width: 1536px) {
-  .app-shell {
-    max-width: 1600px;
-    border-radius: 28px;
-  }
-}
-@media (min-width: 1920px) {
-  .app-shell {
-    max-width: 1760px;
-  }
+  background: rgba(30, 30, 30, 0.95);
 }
 
 /* iOS-style refined scrollbar */
@@ -281,13 +263,6 @@ textarea.font-chat {
   border-radius: 6px;
   font-size: 0.88em;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-}
-.md-body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 16px;
-  margin: 0.5em 0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
 }
 .md-body pre {
   background: rgba(15, 23, 42, 0.9);

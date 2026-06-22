@@ -25,14 +25,15 @@ export function MessageList({ messages, streamingId, onRetry, conversationId, co
     const onScroll = () => {
       const distFromBottom =
         el.scrollHeight - el.scrollTop - el.clientHeight
-      stickToBottomRef.current = distFromBottom < 120
+      stickToBottomRef.current = distFromBottom < 150
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
   // Auto-scroll to bottom when new content arrives — but ONLY if the user
-  // is already near the bottom (debounced via rAF to avoid per-chunk layout thrash).
+  // is already near the bottom. If they scrolled up to read, don't yank them down.
+  // Use 'auto' behavior (instant) instead of 'smooth' to avoid janky animation during streaming.
   useEffect(() => {
     if (!stickToBottomRef.current) return
     const el = endRef.current
@@ -56,6 +57,7 @@ export function MessageList({ messages, streamingId, onRetry, conversationId, co
     <div
       ref={containerRef}
       className="thin-scrollbar flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6"
+      style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4 lg:max-w-4xl lg:gap-5">
         {messages.map((m) => (

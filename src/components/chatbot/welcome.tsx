@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Quote as QuoteIcon, Sparkles, MessageCircle, Lightbulb, PenLine, BookOpen } from 'lucide-react'
+import { Quote as QuoteIcon } from 'lucide-react'
 import { Logo } from './logo'
-import { PROMPT_TEMPLATES } from '@/lib/chat-utils'
 
 interface DisplayQuote {
   text: string
@@ -12,32 +11,20 @@ interface DisplayQuote {
 
 interface Props {
   userName?: string | null
-  onPick?: (text: string) => void
 }
 
-const SUGGESTIONS = [
-  { icon: Lightbulb, text: 'Jelaskan fotosintesis dengan sederhana' },
-  { icon: PenLine, text: 'Tulis caption Instagram untuk liburan ke Bali' },
-  { icon: MessageCircle, text: 'Beri saya saran fokus belajar' },
-  { icon: Sparkles, text: 'Berita teknologi AI terbaru' },
-]
-
-export function Welcome({ userName, onPick }: Props) {
+export function Welcome({ userName }: Props) {
   const name = userName?.trim()
   const greeting = name
-    ? `Halo, ${name}!`
-    : 'Halo!'
+    ? `Halo, ${name}! Apa kabar hari ini?`
+    : 'Halo! Apa kabar?'
 
   const [quote, setQuote] = useState<DisplayQuote | null>(null)
-  const [showTemplates, setShowTemplates] = useState(false)
 
-  // Fetch a real quote from the API — with a 5s timeout so the spinner
-  // never spins forever.
+  // Fetch a real quote from the API only
   useEffect(() => {
     let cancelled = false
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 5000)
-    fetch('/api/quote', { signal: ctrl.signal })
+    fetch('/api/quote')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data?.text) return
@@ -46,107 +33,54 @@ export function Welcome({ userName, onPick }: Props) {
       .catch(() => {})
     return () => {
       cancelled = true
-      clearTimeout(t)
-      ctrl.abort()
     }
   }, [])
 
-  // Group templates by category
-  const categories = Array.from(new Set(PROMPT_TEMPLATES.map((t) => t.category)))
-
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
       {/* Logo */}
-      <div className="mb-5 shadow-xl shadow-[#0A84FF]/30 sm:mb-6">
-        <Logo size={64} />
+      <div className="mb-6">
+        <Logo size={76} />
       </div>
 
-      {/* Greeting */}
-      <h1 className="max-w-md text-center text-[22px] font-bold leading-snug tracking-tight text-slate-900 sm:text-[27px] dark:text-white">
+      {/* Greeting — bold, high-contrast in both themes */}
+      <h1 className="max-w-md text-center text-[27px] font-bold leading-snug tracking-tight text-slate-900 dark:text-white">
         {greeting}
       </h1>
-      <p className="mt-1.5 max-w-md text-center text-[14px] text-slate-500 sm:text-[15px] dark:text-slate-400">
-        Ada yang bisa saya bantu hari ini?
-      </p>
 
-      {/* Quote */}
-      <div className="mt-5 w-full max-w-md sm:mt-7">
-        <div className="mb-2 flex items-center justify-center gap-2">
-          <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#0A84FF] sm:text-[11px] dark:text-indigo-400">
-            Kata mutiara
-          </span>
-        </div>
-        {quote ? (
-          <>
-            <p className="text-center text-[15px] font-medium leading-relaxed text-slate-800 sm:text-[17px] dark:text-slate-100">
-              &ldquo;{quote.text}&rdquo;
+      {/* Quote — plain text, no bubble */}
+      <div className="mt-7 w-full max-w-md">
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-indigo-400">
+              Kata mutiara
+            </span>
+          </div>
+          {quote ? (
+            <>
+              <p className="text-center text-[17px] font-medium leading-relaxed text-slate-800 dark:text-slate-100">
+                &ldquo;{quote.text}&rdquo;
+              </p>
+              {quote.author && (
+                <p className="mt-2 text-center text-[12px] text-slate-400">
+                  — {quote.author}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-center text-[17px] leading-relaxed text-slate-400">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#0A84FF] align-middle" />
             </p>
-            {quote.author && (
-              <p className="mt-2 text-center text-[11px] text-slate-400 sm:text-[12px]">
-                — {quote.author}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="flex items-center justify-center text-[15px] text-slate-400 sm:text-[17px]">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#0A84FF]" />
-          </p>
-        )}
+          )}
       </div>
 
-      {/* Suggestion chips — clickable, send the prompt to the chat */}
-      <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-2 sm:mt-8 sm:grid-cols-2">
-        {SUGGESTIONS.map((s, i) => {
-          const Icon = s.icon
-          return (
-            <button
-              key={i}
-              onClick={() => onPick?.(s.text)}
-              className="tap-feedback flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/60 px-3.5 py-2.5 text-left text-[13px] text-slate-600 backdrop-blur-sm transition hover:border-[#0A84FF]/40 hover:bg-white hover:shadow-sm active:scale-[0.98] sm:text-[14px] dark:border-slate-700/60 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:border-[#0A84FF]/40 dark:hover:bg-slate-800"
-            >
-              <Icon className="h-4 w-4 shrink-0 text-[#0A84FF] dark:text-indigo-400" />
-              <span className="line-clamp-2">{s.text}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Prompt templates library */}
-      <button
-        onClick={() => setShowTemplates((v) => !v)}
-        className="mt-4 flex items-center gap-1.5 rounded-full bg-[#0A84FF]/10 px-3 py-1.5 text-[11px] font-medium text-[#0A84FF] transition hover:bg-[#0A84FF]/20"
-      >
-        <BookOpen className="h-3.5 w-3.5" />
-        {showTemplates ? 'Sembunyikan template' : 'Lihat template prompt'}
-      </button>
-      {showTemplates && (
-        <div className="mt-3 w-full max-w-md">
-          {categories.map((cat) => (
-            <div key={cat} className="mb-3">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                {cat}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {PROMPT_TEMPLATES.filter((t) => t.category === cat).map((t, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onPick?.(t.prompt)}
-                    className="tap-feedback flex items-center gap-1 rounded-full border border-slate-200 bg-white/60 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-[#0A84FF]/40 hover:bg-white active:scale-95 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
-                  >
-                    <span>{t.icon}</span>
-                    <span>{t.title}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Hint */}
-      <p className="mt-5 max-w-sm text-center text-[12px] text-slate-400 sm:mt-6 sm:text-[13px]">
-        Ketik pesan di bawah, atau gunakan mikrofon/lampiran untuk mulai.
+      {/* Hint to start chatting */}
+      <p className="mt-7 max-w-sm text-center text-[14px] font-medium text-slate-600 dark:text-slate-300">
+        Ada yang bisa saya bantu hari ini?
+        <br />
+        <span className="text-slate-500 dark:text-slate-400">
+          Ketik pesan di bawah untuk mulai mengobrol.
+        </span>
       </p>
     </div>
   )
