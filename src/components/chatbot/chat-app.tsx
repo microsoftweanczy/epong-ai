@@ -707,7 +707,6 @@ export default function ChatApp() {
           userName={user.name}
           onClose={() => setSidebarOpen(false)}
           onSelect={handleSelect}
-          onNew={handleNew}
           onDelete={handleDelete}
           onRename={handleRename}
           onSettings={() => {

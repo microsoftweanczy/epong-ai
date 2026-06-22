@@ -1000,3 +1000,18 @@ Work Log:
 
 Stage Summary:
 - 8 features integrated: Voice Input (ASR), Voice Output (TTS), Export & Share (MD/TXT/Copy), Search, Pin/Bookmark, Code Block Copy, Prompt Templates, Safe Mode. All using z-ai SDK for voice + client-side utilities for the rest. No external dependencies needed.
+
+---
+Task ID: 37
+Agent: main
+Task: Remove "Obrolan Baru" button from left sidebar panel
+
+Work Log:
+- Removed the "Obrolan Baru" (New Chat) button block from sidebar.tsx — the blue gradient button that was below the header.
+- Removed the now-unused `Plus` icon import and `onNew` prop from the Sidebar interface + destructuring.
+- Removed `onNew={handleNew}` from the Sidebar usage in chat-app.tsx.
+- `handleNew` is still used by the header's SquarePen "Obrolan baru" button, so users can still create new chats — just from the header, not the sidebar.
+- Verified: 0 "Obrolan Baru" buttons found in the sidebar. Sidebar now shows only: search bar, conversation list, Pengaturan, Keluar. Lint clean.
+
+Stage Summary:
+- "Obrolan Baru" button removed from the left sidebar. New chat is still accessible via the header's pencil icon button. Sidebar is now cleaner.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut, Search } from 'lucide-react'
+import { MessageSquare, Trash2, X, Pencil, Check, Settings, LogOut, Search } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
 import { formatTime } from '@/lib/format'
 import { Logo } from './logo'
@@ -14,7 +14,6 @@ interface Props {
   userName?: string | null
   onClose: () => void
   onSelect: (id: string) => void
-  onNew: () => void
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
   onSettings: () => void
@@ -29,7 +28,6 @@ export function Sidebar({
   userName,
   onClose,
   onSelect,
-  onNew,
   onDelete,
   onRename,
   onSettings,
@@ -87,17 +85,6 @@ export function Sidebar({
               aria-label="Tutup sidebar"
             >
               <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* New chat */}
-          <div className="px-2.5 pb-2 sm:px-3">
-            <button
-              onClick={onNew}
-              className="tap-feedback flex w-full items-center gap-2 rounded-2xl bg-gradient-to-br from-[#0A84FF] to-[#0064D6] px-3.5 py-2.5 text-[14px] font-medium text-white shadow-md shadow-[#0A84FF]/25 hover:brightness-110 sm:px-4 sm:text-[15px]"
-            >
-              <Plus className="h-5 w-5" />
-              Obrolan Baru
             </button>
           </div>
 
