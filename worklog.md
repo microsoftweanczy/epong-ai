@@ -624,3 +624,24 @@ Work Log:
 Stage Summary:
 - 502 error on image generation FIXED. Both the API (3 retries) and client (2 retries) now handle the slow generation + gateway timeout gracefully. Total resilience: up to 6 attempts (3 API × 2 client) before showing an error.
 - User experience: clear "mohon tunggu 30-40 detik" placeholder, "Mencoba lagi..." on retry, actionable error message on failure.
+
+---
+Task ID: 26
+Agent: main
+Task: Replace image-gen icon with shirt symbol, place below chat input, small size
+
+Work Log:
+- Removed the custom PNG icon (image-gen-icon.png) and the ImageGenIcon component.
+- Replaced with the `Shirt` icon from lucide-react (a t-shirt symbol).
+- Moved the image-mode toggle button from INSIDE the composer input bar to BELOW it:
+  * Small button: `h-3.5 w-3.5` icon + `text-[11px]` label
+  * Inactive state: subtle gray "Buat Gambar" with shirt icon
+  * Active state: blue pill "Mode Gambar aktif"
+  * When active, an additional hint banner appears: "Ketik deskripsi lalu kirim untuk membuat gambar"
+- The send button inside the input bar now shows the Shirt icon when in image mode (instead of ImagePlus).
+- Fixed: welcome page content was pushing the composer (and the shirt button) below the viewport on short screens. Added `overflow-y-auto` to the welcome container so it scrolls internally while the composer stays fixed at the bottom.
+- Deleted the old custom icon files (image-gen-icon.png, image-gen-icon@2x.png).
+- Verified: VLM confirmed the small shirt icon button "Buat Gambar" is visible below the chat input. Toggle works (placeholder changes to "Deskripsikan gambar yang ingin dibuat…"). No errors. Lint clean.
+
+Stage Summary:
+- Image-gen toggle is now a small shirt icon button labeled "Buat Gambar", placed below the chat input box. Clean, minimal, doesn't clutter the input bar.

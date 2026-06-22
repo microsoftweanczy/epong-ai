@@ -744,7 +744,7 @@ export default function ChatApp() {
 
           {/* Body */}
           {showWelcome ? (
-            <div className="flex flex-1 flex-col">
+            <div className="thin-scrollbar flex flex-1 flex-col overflow-y-auto">
               <Welcome userName={user.name} onPick={handleSend} />
             </div>
           ) : (
