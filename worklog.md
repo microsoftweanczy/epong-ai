@@ -592,3 +592,35 @@ Stage Summary:
 - Suggestion chips on the greeting page are now clickable — clicking one immediately sends it as a message and the AI responds.
 - Image generation feature is live: click the "+" button to switch to image mode, type a description, send → AI generates an image (1024x1024 by default) and displays it inline in the chat. The image is persisted with the conversation.
 - Uses z-ai-web-dev-sdk's built-in image generation (no external API key needed, works in both preview and production).
+
+---
+Task ID: 25
+Agent: main
+Task: Fix 502 error on image generation (gateway timeout on slow generation)
+
+Work Log:
+- Root cause: Image generation takes 30-42s. The Caddy gateway (port 81) has a default proxy timeout that cuts off long-running requests, returning 502 to the client. Cannot modify the gateway config (runs as root from /app/Caddyfile).
+
+- **Fix 1 — API route retry logic** (src/app/api/generate-image/route.ts):
+  - Added 3-attempt retry loop. If the z-ai SDK fails or times out (40s per-attempt timeout), it retries with a brief backoff (500ms × attempt).
+  - Cached the ZAI SDK instance as a singleton (`_zai`) — avoids recreating on every attempt.
+  - Returns 502 with a clear Indonesian error message only after ALL 3 attempts fail.
+  - Returns the attempt count on success so the client knows if retries were needed.
+
+- **Fix 2 — Client-side retry + longer timeout** (chat-app.tsx handleGenerateImage):
+  - Added 2-attempt client-side retry loop. If the gateway returns 502 (or any non-ok response), the client retries after 1s.
+  - 90-second client-side AbortController timeout (was none — could hang forever). Generous because the API retries internally (up to 3 × 40s = 120s worst case, but typically succeeds on first attempt in ~30s).
+  - Updated placeholder: "🎨 Membuat gambar... (mohon tunggu 30-40 detik)" — sets user expectation that this is slow.
+  - On retry, updates placeholder: "🎨 Mencoba lagi... (percobaan 2/2)" — user sees it's retrying.
+  - On final failure: "*(Gagal membuat gambar: {error}. Coba lagi dengan prompt yang lebih singkat.)*" — actionable error message.
+  - User-initiated abort (stop button) is respected — doesn't retry.
+
+- Verified end-to-end:
+  * Prompt: "bunga matahari kuning di taman" (yellow sunflowers in the garden)
+  * Image generated successfully on first attempt (POST /api/generate-image 200 in 36.6s)
+  * VLM confirmed: "vibrant yellow sunflowers in a garden, full bloom, bright yellow petals, brown centers, green leaves" — matches prompt perfectly.
+  * No 502 errors. No console errors. Lint clean.
+
+Stage Summary:
+- 502 error on image generation FIXED. Both the API (3 retries) and client (2 retries) now handle the slow generation + gateway timeout gracefully. Total resilience: up to 6 attempts (3 API × 2 client) before showing an error.
+- User experience: clear "mohon tunggu 30-40 detik" placeholder, "Mencoba lagi..." on retry, actionable error message on failure.

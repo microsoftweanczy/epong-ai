@@ -215,7 +215,7 @@ export default function ChatApp() {
         id: crypto.randomUUID(),
         conversationId: convId,
         role: 'assistant',
-        content: '🎨 Membuat gambar...',
+        content: '🎨 Membuat gambar... (mohon tunggu 30-40 detik)',
         createdAt: new Date().toISOString(),
       }
 
@@ -227,57 +227,90 @@ export default function ChatApp() {
         store!.addMessage(convId, 'user', prompt).catch((e) => console.error(e))
       }
 
-      const controller = new AbortController()
-      abortRef.current = controller
+      // Client-side retry (up to 2 attempts) — the gateway may 502 on slow gens
+      const MAX_CLIENT_RETRIES = 2
+      let lastError: any = null
 
-      try {
-        const res = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, size: '1024x1024' }),
-          signal: controller.signal,
-        })
+      for (let attempt = 1; attempt <= MAX_CLIENT_RETRIES; attempt++) {
+        const controller = new AbortController()
+        abortRef.current = controller
+        // 90s client timeout — generous, since the API retries internally too
+        const timeout = setTimeout(() => controller.abort(), 90_000)
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.error || `Request failed (${res.status})`)
-        }
+        try {
+          const res = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, size: '1024x1024' }),
+            signal: controller.signal,
+          })
 
-        const data = await res.json()
-        if (data.image) {
-          // Store the image as a special markdown content with the data URL
-          const imageContent = `![${prompt}](${data.image})`
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsg.id
-                ? { ...m, content: imageContent }
-                : m
-            )
-          )
-          if (!incognito) {
-            await store!.addMessage(convId, 'assistant', imageContent)
-            refreshConvos()
+          clearTimeout(timeout)
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.error || `Request failed (${res.status})`)
           }
-        } else {
-          throw new Error(data.error || 'No image in response')
-        }
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
-          setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id))
-        } else {
-          console.error(e)
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsg.id
-                ? { ...m, content: `*(Gagal membuat gambar: ${e.message})*` }
-                : m
+
+          const data = await res.json()
+          if (data.image) {
+            // Store the image as a special markdown content with the data URL
+            const imageContent = `![${prompt}](${data.image})`
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id
+                  ? { ...m, content: imageContent }
+                  : m
+              )
             )
-          )
+            if (!incognito) {
+              await store!.addMessage(convId, 'assistant', imageContent)
+              refreshConvos()
+            }
+            // Success — exit the retry loop
+            lastError = null
+            break
+          } else {
+            throw new Error(data.error || 'No image in response')
+          }
+        } catch (e: any) {
+          clearTimeout(timeout)
+          lastError = e
+
+          if (e.name === 'AbortError') {
+            // User clicked stop — don't retry
+            setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id))
+            break
+          }
+
+          // Update placeholder with retry status
+          if (attempt < MAX_CLIENT_RETRIES) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id
+                  ? { ...m, content: `🎨 Mencoba lagi... (percobaan ${attempt + 1}/${MAX_CLIENT_RETRIES})` }
+                  : m
+              )
+            )
+            // Brief pause before retry
+            await new Promise((r) => setTimeout(r, 1000))
+          }
         }
-      } finally {
-        setStreamingId(null)
-        abortRef.current = null
       }
+
+      // If all retries failed, show error
+      if (lastError) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsg.id
+              ? { ...m, content: `*(Gagal membuat gambar: ${lastError.message}. Coba lagi dengan prompt yang lebih singkat.)*` }
+              : m
+          )
+        )
+      }
+
+      setStreamingId(null)
+      abortRef.current = null
     },
     [activeId, store, refreshConvos]
   )
