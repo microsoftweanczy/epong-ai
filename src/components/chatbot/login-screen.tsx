@@ -97,7 +97,7 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
         {/* Logo + greeting */}
         <div className="mb-7 flex flex-col items-center text-center">
           <div className="mb-5">
-            <Logo size={72} />
+            <Logo size={88} />
           </div>
           <h1 className="text-[24px] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[28px]">
             ManggarAI
