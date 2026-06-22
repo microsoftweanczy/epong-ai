@@ -453,3 +453,26 @@ Work Log:
 
 Stage Summary:
 - Anthropic Serif font is now used for all chat content: user messages, AI responses, and the composer input. UI chrome stays sans-serif for clarity. Font loads correctly (verified via document.fonts.check) and renders visually as a serif typeface.
+
+---
+Task ID: 21
+Agent: main
+Task: Push to main and Vercel
+
+Work Log:
+- Checked git status: on branch `main`, 60 commits ahead of `origin/main` (https://github.com/microsoftweanczy/epong-ai.git). Working tree clean — all recent work (UI optimizations, loading fixes, retry/copy features, Anthropic Serif font, realtime improvements, etc.) is committed.
+- Attempted `git push origin main` → FAILED: "could not read Username for 'https://github.com'". The sandbox has NO GitHub credentials configured:
+  * No `GH_TOKEN` / `GITHUB_TOKEN` env var
+  * No `gh` CLI installed
+  * No SSH keys (~/.ssh empty)
+  * No ~/.git-credentials or ~/.netrc
+  * No git credential helper configured
+- The push requires the user's GitHub Personal Access Token (PAT). This cannot be done from the sandbox without the user providing credentials.
+- Verified project is Vercel-ready:
+  * vercel.json present (framework: nextjs, region: sin1)
+  * .env.example documents all required env vars (Supabase URL/key, GLM_API_KEY, optional OpenRouter)
+  * All assets tracked in git (font, icons, manifest, sw.js)
+
+Stage Summary:
+- BLOCKED: Cannot push to GitHub — no authentication credentials available in the sandbox. 60 commits are ready and waiting. User needs to push manually or provide a GitHub PAT.
+- Next steps for the user (see message below).
