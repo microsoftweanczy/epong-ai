@@ -1,25 +1,47 @@
 import type { ApiMessage } from './types'
 
 /**
- * AI provider abstraction.
+ * AI provider abstraction (test-api branch).
  *
- * Uses GLM (Zhipu AI) as the primary provider — best Indonesian quality.
- * Falls back to OpenRouter, then z-ai SDK.
- *
- * Env vars:
- *   GLM_API_KEY     — required for GLM (primary)
- *   GLM_MODEL       — optional, default: glm-4.5-flash
- *   OPENROUTER_API_KEY  — optional fallback
- *   OPENROUTER_MODEL    — optional, default: meta-llama/llama-3.3-70b-instruct:free
+ * Primary: Deepseek (REDACTED)
+ * Fallback 1: GLM via DashScope (built-in key)
+ * Fallback 2: OpenRouter (optional, env-driven)
+ * Fallback 3: z-ai SDK (built-in)
  */
 
 const MAX_HISTORY = 20
 const ERROR_PREVIEW = 200
-const GLM_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4'
-const GLM_DEFAULT_MODEL = 'glm-4.5-flash'
+
+// Deepseek — PRIMARY
+const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1'
+const DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat'
+const DEEPSEEK_FALLBACK_KEY = 'REDACTED'
+
+// GLM via DashScope — fallback 1
+const GLM_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+const GLM_DEFAULT_MODEL = 'qwen3.6-flash'
+const GLM_FALLBACK_KEY = 'sk-ws-H.IYYPHR.dM6s.MEUCID8hSB15TQhZO_RutoErcWE0dXcb5lmQKeeyc319DpGbAiEA4sHr-BtPdLPDyi6TBfqCUNREaPSpusiiUoRxFBDycWM'
+
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const OPENROUTER_DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const REQUEST_TIMEOUT_MS = 6000
+const STREAM_TIMEOUT_MS = 60_000
+
+function getDeepseekKey(): string {
+  return process.env.DEEPSEEK_API_KEY || DEEPSEEK_FALLBACK_KEY
+}
+
+function getGLMKey(): string {
+  return process.env.GLM_API_KEY || GLM_FALLBACK_KEY
+}
+
+function getGLMBase(): string {
+  return process.env.GLM_BASE_URL || GLM_BASE_URL
+}
+
+function getGLMModel(): string {
+  return process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+}
 
 // ── Public API ──
 
@@ -33,17 +55,23 @@ export async function streamChat(
 ): Promise<boolean> {
   const trimmed = trimHistory(messages)
 
-  // Primary: GLM (best Indonesian)
-  if (process.env.GLM_API_KEY) {
-    try {
-      await streamFromGLM(trimmed, onDelta)
-      return true
-    } catch (e: any) {
-      console.error('[ai] GLM stream failed:', e?.message)
-    }
+  // Primary: Deepseek
+  try {
+    await streamFromDeepseek(trimmed, onDelta)
+    return true
+  } catch (e: any) {
+    console.error('[ai] Deepseek stream failed:', e?.message)
   }
 
-  // Fallback 1: OpenRouter
+  // Fallback 1: GLM via DashScope (always available — has built-in fallback key)
+  try {
+    await streamFromGLM(trimmed, onDelta)
+    return true
+  } catch (e: any) {
+    console.error('[ai] GLM stream failed:', e?.message)
+  }
+
+  // Fallback 2: OpenRouter (optional)
   if (process.env.OPENROUTER_API_KEY) {
     try {
       await streamFromOpenRouter(trimmed, onDelta)
@@ -53,7 +81,7 @@ export async function streamChat(
     }
   }
 
-  // Fallback 2: z-ai SDK
+  // Fallback 3: z-ai SDK
   try {
     await streamFromZAI(trimmed, onDelta)
     return true
@@ -71,12 +99,18 @@ export async function completeChat(
 ): Promise<string> {
   const trimmed = trimHistory(messages)
 
-  if (process.env.GLM_API_KEY) {
-    try {
-      return await completeFromGLM(trimmed)
-    } catch (e: any) {
-      console.error('[ai] GLM complete failed:', e?.message)
-    }
+  // Primary: Deepseek
+  try {
+    return await completeFromDeepseek(trimmed)
+  } catch (e: any) {
+    console.error('[ai] Deepseek complete failed:', e?.message)
+  }
+
+  // Fallback 1: GLM via DashScope
+  try {
+    return await completeFromGLM(trimmed)
+  } catch (e: any) {
+    console.error('[ai] GLM complete failed:', e?.message)
   }
 
   if (process.env.OPENROUTER_API_KEY) {
@@ -135,7 +169,49 @@ function timeoutSignal(ms: number): AbortSignal {
   return AbortSignal.timeout(ms)
 }
 
-// ── GLM (Zhipu AI) — primary, best Indonesian ──
+// ── Deepseek — PRIMARY ──
+
+async function streamFromDeepseek(
+  messages: ApiMessage[],
+  onDelta: (text: string) => void
+): Promise<void> {
+  const model = process.env.DEEPSEEK_MODEL || DEEPSEEK_DEFAULT_MODEL
+  const res = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getDeepseekKey()}`,
+    },
+    body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
+  })
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Deepseek ${res.status}: ${text.slice(0, ERROR_PREVIEW)}`)
+  }
+  await parseSSEStream(res.body, onDelta)
+}
+
+async function completeFromDeepseek(messages: ApiMessage[]): Promise<string> {
+  const model = process.env.DEEPSEEK_MODEL || DEEPSEEK_DEFAULT_MODEL
+  const res = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getDeepseekKey()}`,
+    },
+    body: JSON.stringify({ model, messages, stream: false, max_tokens: 800 }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS * 2),
+  })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`Deepseek ${res.status}: ${t.slice(0, ERROR_PREVIEW)}`)
+  }
+  const data = await res.json()
+  return data?.choices?.[0]?.message?.content || ''
+}
+
+// ── GLM via DashScope — fallback 1 ──
 
 async function streamFromGLM(
   messages: ApiMessage[],
