@@ -10,6 +10,7 @@ interface Props {
   conversations: Conversation[]
   activeId: string | null
   open: boolean
+  collapsed?: boolean
   userName?: string | null
   onClose: () => void
   onSelect: (id: string) => void
@@ -24,6 +25,7 @@ export function Sidebar({
   conversations,
   activeId,
   open,
+  collapsed = false,
   userName,
   onClose,
   onSelect,
@@ -58,9 +60,9 @@ export function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[80%] max-w-[320px] flex-col transition-transform duration-300 ease-out sm:static sm:z-0 sm:w-72 sm:max-w-none sm:translate-x-0 lg:w-80 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[80%] max-w-[320px] flex-col transition-transform duration-300 ease-out sm:static sm:z-0 sm:shrink-0 sm:w-72 sm:max-w-none sm:translate-x-0 sm:transition-[width,transform,opacity] lg:w-80 ${
           open ? 'translate-x-0' : '-translate-x-full'
-        }`
+        } ${collapsed ? 'sm:!w-0 sm:!opacity-0 sm:!overflow-hidden' : 'sm:opacity-100'}`
       }
       >
         <div className="safe-top glass flex h-full flex-col sm:rounded-none sm:border-r sm:border-slate-200/60 dark:sm:border-slate-800/60">

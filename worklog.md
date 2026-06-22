@@ -805,3 +805,32 @@ Work Log:
 Stage Summary:
 - GLM (via DashScope/qwen3.6-flash) is now the primary text API — always available with built-in fallback key. No more z-ai SDK garbled streaming.
 - Bold text DISABLED in all responses — system prompt + realtime prompt both enforce regular text only with dash-prefixed bullets.
+
+---
+Task ID: 32
+Agent: main
+Task: Add panel hide/show sidebar toggle at the top of the app
+
+Work Log:
+- Added `sidebarCollapsed` state to chat-app.tsx (default: false / visible).
+- Added a desktop-only toggle button in the header (next to the mobile hamburger):
+  * Uses `PanelLeftClose` icon when sidebar is visible (click to hide)
+  * Uses `PanelLeftOpen` icon when sidebar is hidden (click to show)
+  * Only visible on desktop (`hidden sm:flex`) — mobile keeps the hamburger menu
+  * aria-label/title: "Sembunyikan sidebar" / "Tampilkan sidebar"
+- Passed `collapsed` prop to Sidebar component.
+- Updated Sidebar's `<aside>` className: when collapsed on desktop, sets `sm:!w-0 sm:!opacity-0 sm:!overflow-hidden` — smoothly collapses to 0 width with opacity transition. Added `sm:shrink-0` and `sm:transition-[width,transform,opacity]` for smooth animation.
+- Mobile behavior unchanged: still uses the slide-over hamburger menu (the desktop toggle is hidden on mobile via `sm:flex`).
+
+- Verified on desktop (1440×900):
+  * "Sembunyikan sidebar" button visible in header ✓
+  * Click → sidebar collapses from 320px to 0px ✓
+  * Button changes to "Tampilkan sidebar" ✓
+  * Click again → sidebar expands back to 320px ✓
+- Verified on mobile (iPhone 14):
+  * Hamburger "Buka obrolan" visible ✓
+  * Desktop toggle hidden ✓
+- No errors. Lint clean.
+
+Stage Summary:
+- Added a panel hide/show toggle button at the top-left of the app header (desktop only). Click to collapse the sidebar to 0 width, click again to expand. Mobile keeps the hamburger slide-over menu. Smooth width + opacity transition.

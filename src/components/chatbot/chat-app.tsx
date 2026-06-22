@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Menu, SquarePen, EyeOff } from 'lucide-react'
+import { Menu, SquarePen, EyeOff, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
@@ -27,6 +27,7 @@ export default function ChatApp() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop hide/show
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [chatMode, setChatMode] = useState<'chat' | 'image'>('chat')
 
@@ -693,6 +694,7 @@ export default function ChatApp() {
           conversations={conversations}
           activeId={activeId}
           open={sidebarOpen}
+          collapsed={sidebarCollapsed}
           userName={user.name}
           onClose={() => setSidebarOpen(false)}
           onSelect={handleSelect}
@@ -710,12 +712,26 @@ export default function ChatApp() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           {/* Top bar — flush to the card edge on desktop, floating on mobile */}
           <header className="safe-top glass-bar sticky top-0 z-20 flex items-center gap-1 px-2 py-2 shadow-sm sm:gap-1.5 sm:px-3 lg:rounded-t-3xl">
+            {/* Mobile: open sidebar (slide-over) */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:hidden"
               aria-label="Buka obrolan"
             >
               <Menu className="h-[18px] w-[18px]" />
+            </button>
+            {/* Desktop: collapse/expand sidebar toggle */}
+            <button
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10 sm:flex"
+              aria-label={sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+              title={sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-[18px] w-[18px]" />
+              ) : (
+                <PanelLeftClose className="h-[18px] w-[18px]" />
+              )}
             </button>
             <div className="min-w-0 flex-1 px-1">
               <h1 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:text-[17px] dark:text-white">
