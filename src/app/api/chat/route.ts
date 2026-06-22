@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import type { ApiMessage } from '@/lib/types'
+import type { Attachment } from '@/lib/types'
 import { streamChat } from '@/lib/ai-providers'
 import {
   gatherRealtimeContext,
@@ -10,6 +11,14 @@ import type { Preferences, MemoryNote } from '@/lib/settings'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+interface ChatRequestBody {
+  messages?: ApiMessage[]
+  prefs?: Preferences | null
+  memory?: MemoryNote[]
+  behaviorProfile?: string
+  attachments?: Attachment[]
+}
 
 /**
  * Streaming chat completion endpoint.
@@ -35,6 +44,40 @@ export async function POST(req: NextRequest) {
   }
 
   const incoming = Array.isArray(body.messages) ? body.messages : []
+  const attachments = body.attachments || []
+
+  // ── Process attachments: analyze images + extract file text ──
+  let attachmentContext = ''
+  if (attachments.length > 0) {
+    const parts: string[] = []
+    for (const att of attachments) {
+      if (att.type === 'image' && att.dataUrl) {
+        // Analyze image via VLM
+        try {
+          const visionRes = await fetch(`${req.nextUrl.origin}/api/vision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image: att.dataUrl,
+              question: 'Jelaskan gambar ini secara detail dalam Bahasa Indonesia.',
+            }),
+          })
+          if (visionRes.ok) {
+            const vData = await visionRes.json()
+            parts.push(`[Gambar: ${att.name}]\nDeskripsi: ${vData.description}`)
+          }
+        } catch {
+          parts.push(`[Gambar: ${att.name} — gagal dianalisis]`)
+        }
+      } else if (att.type === 'file' && att.textContent) {
+        parts.push(`[File: ${att.name}]\nKonten:\n${att.textContent.slice(0, 3000)}`)
+      }
+    }
+    if (parts.length > 0) {
+      attachmentContext = `\n\n=== USER ATTACHMENTS ===\n${parts.join('\n\n')}\n=== END ATTACHMENTS ===\nReference these attachments when answering. The user uploaded them for context.`
+    }
+  }
+
   const systemInstruction = buildInstruction(
     body.prefs,
     body.memory,
@@ -45,9 +88,9 @@ export async function POST(req: NextRequest) {
   const realtimeCtx = await gatherRealtimeContext(incoming)
   const realtimePrompt = buildRealtimePrompt(realtimeCtx)
 
-  const fullSystem = realtimePrompt
-    ? `${systemInstruction}${realtimePrompt}`
-    : systemInstruction
+  const fullSystem = [systemInstruction, attachmentContext, realtimePrompt]
+    .filter(Boolean)
+    .join('')
 
   // Note: streamChat trims history internally (MAX_HISTORY=20) — no need to slice here.
   const messages: ApiMessage[] = [

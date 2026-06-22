@@ -15,7 +15,7 @@ import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { useIncognito } from '@/lib/incognito'
 import { toast } from 'sonner'
-import type { Conversation, ChatMessage, ApiMessage } from '@/lib/types'
+import type { Conversation, ChatMessage, ApiMessage, Attachment } from '@/lib/types'
 import { NEW_CHAT_TITLE, TITLE_MAX_LENGTH } from '@/lib/types'
 import type { MemoryNote } from '@/lib/settings'
 
@@ -318,7 +318,7 @@ export default function ChatApp() {
 
   // ---- send a message (with streaming) ----
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, attachments?: Attachment[]) => {
       // Branch: image generation mode
       if (chatMode === 'image') {
         handleGenerateImage(text)
@@ -333,7 +333,7 @@ export default function ChatApp() {
       // ensure a conversation — title it from the first user message
       let convId = activeId
       if (!incognito && !convId) {
-        const title = text.slice(0, TITLE_MAX_LENGTH).trim() || NEW_CHAT_TITLE
+        const title = text.slice(0, TITLE_MAX_LENGTH).trim() || (attachments && attachments.length > 0 ? 'Lampiran' : NEW_CHAT_TITLE)
         try {
           const conv = await store!.createConversation(title)
           convId = conv.id
@@ -353,12 +353,13 @@ export default function ChatApp() {
         role: 'user',
         content: text,
         createdAt: new Date().toISOString(),
+        attachments: attachments && attachments.length > 0 ? attachments : undefined,
       }
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         conversationId: convId,
         role: 'assistant',
-        content: '',
+        content: attachments && attachments.length > 0 ? '📎 Menganalisis lampiran...' : '',
         createdAt: new Date().toISOString(),
       }
 
@@ -366,7 +367,8 @@ export default function ChatApp() {
       setMessages((prev) => [...prev, userMsg, assistantMsg])
       setStreamingId(assistantMsg.id)
 
-      // persist user message (skip in incognito)
+      // persist user message (skip in incognito — note: attachments aren't persisted to storage
+      // for size reasons; they're only sent to the AI in the current request)
       if (!incognito) {
         store!.addMessage(convId, 'user', text).catch((e) => console.error(e))
       }
@@ -390,6 +392,7 @@ export default function ChatApp() {
             prefs,
             memory,
             behaviorProfile,
+            attachments: attachments && attachments.length > 0 ? attachments : undefined,
           }),
           signal: controller.signal,
         })

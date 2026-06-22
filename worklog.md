@@ -849,3 +849,39 @@ Work Log:
 
 Stage Summary:
 - Successfully pushed 12 commits to https://github.com/microsoftweanczy/epong-ai.git main. Vercel auto-deploy triggered.
+
+---
+Task ID: 34
+Agent: main
+Task: Add image + file upload/attachment feature
+
+Work Log:
+- Extended types (src/lib/types.ts): added `Attachment` interface (id, type: 'image'|'file', name, mimeType, dataUrl, textContent?) and `attachments?` field to ChatMessage.
+
+- Created /api/vision/route.ts: uses z-ai-web-dev-sdk's `zai.chat.completions.createVision()` to analyze images. Takes { image: dataUrl, question }, returns { description }. 25s timeout.
+
+- Updated /api/chat/route.ts: accepts `attachments?` in the request body. For each attachment:
+  * Image: calls /api/vision to get a description, injects "[Gambar: name]\nDeskripsi: ..." into the system prompt.
+  * File: injects "[File: name]\nKonten:\n..." (textContent, capped at 3000 chars) into the system prompt.
+  * The AI receives the attachment context as part of the system instruction and can reference it when answering.
+
+- Updated Composer (src/components/chatbot/composer.tsx):
+  * Added a Paperclip button (left of textarea) — opens a file picker.
+  * Accepts images (png, jpg, jpeg, webp, gif) and text files (txt, md, csv, json, js, ts, py, html, css, xml, yml, yaml, sh).
+  * Max file size: 5MB. Max text length: 50,000 chars.
+  * Shows attachment previews above the input bar: thumbnail for images, file icon + name for files. Each has an X button to remove.
+  * Send button is enabled when there are attachments (even with empty text).
+  * Placeholder changes to "Tulis pesan atau kirim kosong untuk analisis lampiran…" when attachments are present.
+  * The paperclip button is hidden in image-generation mode.
+
+- Updated chat-app.tsx handleSend: accepts `attachments?` param, stores them on the userMsg, shows "📎 Menganalisis lampiran..." placeholder while the vision API processes, passes attachments to /api/chat.
+
+- Updated message-bubble.tsx: renders attachment previews in user messages — image thumbnails (h-24 w-24) and file chips (FileText icon + name) above the text bubble.
+
+- Verified end-to-end:
+  * IMAGE UPLOAD: uploaded a blue test image, asked "Apa warna gambar ini?" → AI responded "Terima kasih sudah membagikan gambar persegi panjang berwarna biru muda tersebut..." — correctly identified the color and shape via VLM.
+  * FILE UPLOAD: uploaded a text file containing "nama saya Budi, saya tinggal di Makassar", asked "Baca file ini" → AI responded "Halo Budi. Aku sudah membaca file teks yang kamu unggah tadi dan mengerti kalau namamu Budi serta kamu tinggal di Makassar..." — correctly extracted and referenced the file content.
+  * No errors. Lint clean.
+
+Stage Summary:
+- Image + file upload feature is live. Users can attach images (analyzed via VLM) and text files (content extracted) via a paperclip button in the composer. Attachments are analyzed and their context is injected into the AI's system prompt, so the AI can reference them when answering. Attachment previews render in both the composer (before sending) and in the message bubble (after sending).
