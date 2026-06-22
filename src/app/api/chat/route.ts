@@ -95,12 +95,15 @@ export async function POST(req: NextRequest) {
         send({ searchPerformed: true })
       }
 
-      const ok = await streamChat(messages, (delta) =>
+      const result = await streamChat(messages, (delta) =>
         send({ content: delta })
       )
 
-      if (!ok) {
-        send({ content: '*(Maaf, AI sedang bermasalah. Coba lagi ya.)*' })
+      if (!result.success) {
+        send({ content: `*(Maaf, AI sedang bermasalah. ${result.error})*` })
+      } else {
+        // Send the provider name so the UI can display which API was used
+        send({ provider: result.provider })
       }
 
       controller.enqueue(encoder.encode('data: [DONE]\n\n'))

@@ -1,12 +1,14 @@
 import type { ApiMessage } from './types'
 
 /**
- * AI provider abstraction (test-api branch).
+ * AI provider abstraction.
  *
  * Primary: Deepseek (REDACTED)
  * Fallback 1: GLM via DashScope (built-in key)
  * Fallback 2: OpenRouter (optional, env-driven)
- * Fallback 3: z-ai SDK (built-in)
+ *
+ * If ALL providers fail, returns an error message — no z-ai SDK fallback.
+ * Each function returns the provider name so the UI can show which API was used.
  */
 
 const MAX_HISTORY = 20
@@ -43,30 +45,38 @@ function getGLMModel(): string {
   return process.env.GLM_MODEL || GLM_DEFAULT_MODEL
 }
 
+// ── Public types ──
+
+export interface ChatResult {
+  success: boolean
+  provider: string // 'Deepseek' | 'GLM' | 'OpenRouter' | ''
+  error?: string
+}
+
 // ── Public API ──
 
 /**
  * Stream a chat completion. Calls `onDelta` for each text chunk.
- * Returns true if any provider succeeded, false if all failed.
+ * Returns ChatResult with the provider name (so UI can show which API was used).
  */
 export async function streamChat(
   messages: ApiMessage[],
   onDelta: (text: string) => void
-): Promise<boolean> {
+): Promise<ChatResult> {
   const trimmed = trimHistory(messages)
 
   // Primary: Deepseek
   try {
     await streamFromDeepseek(trimmed, onDelta)
-    return true
+    return { success: true, provider: 'Deepseek' }
   } catch (e: any) {
     console.error('[ai] Deepseek stream failed:', e?.message)
   }
 
-  // Fallback 1: GLM via DashScope (always available — has built-in fallback key)
+  // Fallback 1: GLM via DashScope
   try {
     await streamFromGLM(trimmed, onDelta)
-    return true
+    return { success: true, provider: 'GLM' }
   } catch (e: any) {
     console.error('[ai] GLM stream failed:', e?.message)
   }
@@ -75,58 +85,55 @@ export async function streamChat(
   if (process.env.OPENROUTER_API_KEY) {
     try {
       await streamFromOpenRouter(trimmed, onDelta)
-      return true
+      return { success: true, provider: 'OpenRouter' }
     } catch (e: any) {
       console.error('[ai] OpenRouter stream failed:', e?.message)
     }
   }
 
-  // Fallback 3: z-ai SDK
-  try {
-    await streamFromZAI(trimmed, onDelta)
-    return true
-  } catch (e: any) {
-    console.error('[ai] z-ai stream failed:', e?.message)
-    return false
+  // All providers failed — no z-ai SDK fallback
+  return {
+    success: false,
+    provider: '',
+    error: 'Semua API sedang bermasalah. Deepseek (saldo tidak cukup), GLM (key tidak valid), OpenRouter (tidak dikonfigurasi). Silakan coba lagi nanti.',
   }
 }
 
 /**
- * Non-streaming chat completion. Returns the full text, or '' if all fail.
+ * Non-streaming chat completion. Returns the full text + provider name.
  */
 export async function completeChat(
   messages: ApiMessage[]
-): Promise<string> {
+): Promise<{ text: string; provider: string }> {
   const trimmed = trimHistory(messages)
 
   // Primary: Deepseek
   try {
-    return await completeFromDeepseek(trimmed)
+    const text = await completeFromDeepseek(trimmed)
+    return { text, provider: 'Deepseek' }
   } catch (e: any) {
     console.error('[ai] Deepseek complete failed:', e?.message)
   }
 
   // Fallback 1: GLM via DashScope
   try {
-    return await completeFromGLM(trimmed)
+    const text = await completeFromGLM(trimmed)
+    return { text, provider: 'GLM' }
   } catch (e: any) {
     console.error('[ai] GLM complete failed:', e?.message)
   }
 
   if (process.env.OPENROUTER_API_KEY) {
     try {
-      return await completeFromOpenRouter(trimmed)
+      const text = await completeFromOpenRouter(trimmed)
+      return { text, provider: 'OpenRouter' }
     } catch (e: any) {
       console.error('[ai] OpenRouter complete failed:', e?.message)
     }
   }
 
-  try {
-    return await completeFromZAI(trimmed)
-  } catch (e: any) {
-    console.error('[ai] z-ai complete failed:', e?.message)
-    return ''
-  }
+  // All failed
+  return { text: '', provider: '' }
 }
 
 // ── Helpers ──
@@ -217,15 +224,16 @@ async function streamFromGLM(
   messages: ApiMessage[],
   onDelta: (text: string) => void
 ): Promise<void> {
-  const base = process.env.GLM_BASE_URL || GLM_BASE_URL
-  const model = process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+  const base = getGLMBase()
+  const model = getGLMModel()
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+      Authorization: `Bearer ${getGLMKey()}`,
     },
     body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
@@ -235,13 +243,13 @@ async function streamFromGLM(
 }
 
 async function completeFromGLM(messages: ApiMessage[]): Promise<string> {
-  const base = process.env.GLM_BASE_URL || GLM_BASE_URL
-  const model = process.env.GLM_MODEL || GLM_DEFAULT_MODEL
+  const base = getGLMBase()
+  const model = getGLMModel()
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GLM_API_KEY}`,
+      Authorization: `Bearer ${getGLMKey()}`,
     },
     body: JSON.stringify({ model, messages, stream: false, max_tokens: 800 }),
     signal: timeoutSignal(REQUEST_TIMEOUT_MS * 2),
@@ -254,7 +262,7 @@ async function completeFromGLM(messages: ApiMessage[]): Promise<string> {
   return data?.choices?.[0]?.message?.content || ''
 }
 
-// ── OpenRouter ──
+// ── OpenRouter — fallback 2 (optional) ──
 
 async function streamFromOpenRouter(
   messages: ApiMessage[],
@@ -270,6 +278,7 @@ async function streamFromOpenRouter(
       'X-Title': 'Epong AI',
     },
     body: JSON.stringify({ model, messages, stream: true, max_tokens: 4096 }),
+    signal: AbortSignal.timeout(STREAM_TIMEOUT_MS),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
@@ -299,65 +308,4 @@ async function completeFromOpenRouter(
   }
   const data = await res.json()
   return data?.choices?.[0]?.message?.content || ''
-}
-
-// ── z-ai SDK (built-in fallback) ──
-
-function decodeChunk(chunk: unknown): string {
-  if (typeof chunk === 'string') return chunk
-  if (chunk instanceof Uint8Array) return Buffer.from(chunk).toString('utf8')
-  if (chunk && typeof chunk === 'object') {
-    const vals = Object.values(chunk as Record<string, unknown>)
-    if (typeof vals[0] === 'number') {
-      return Buffer.from(vals as number[]).toString('utf8')
-    }
-  }
-  return ''
-}
-
-async function streamFromZAI(
-  messages: ApiMessage[],
-  onDelta: (text: string) => void
-): Promise<void> {
-  const ZAIModule = await import('z-ai-web-dev-sdk')
-  const ZAI = ZAIModule.default
-  const zai = await ZAI.create()
-  const completion: any = await zai.chat.completions.create({
-    messages,
-    stream: true,
-    thinking: { type: 'disabled' },
-  } as any)
-
-  if (completion && typeof completion[Symbol.asyncIterator] === 'function') {
-    for await (const chunk of completion as AsyncIterable<unknown>) {
-      const text = decodeChunk(chunk)
-      for (const line of text.split('\n')) {
-        const t = line.trim()
-        if (!t.startsWith('data:')) continue
-        const payload = t.slice(5).trim()
-        if (payload === '[DONE]') continue
-        try {
-          const json = JSON.parse(payload)
-          const delta = json?.choices?.[0]?.delta?.content
-          if (delta) onDelta(delta)
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-  } else {
-    const content = completion?.choices?.[0]?.message?.content
-    if (content) onDelta(content)
-  }
-}
-
-async function completeFromZAI(messages: ApiMessage[]): Promise<string> {
-  const ZAIModule = await import('z-ai-web-dev-sdk')
-  const ZAI = ZAIModule.default
-  const zai = await ZAI.create()
-  const completion: any = await zai.chat.completions.create({
-    messages,
-    thinking: { type: 'disabled' },
-  } as any)
-  return completion?.choices?.[0]?.message?.content || ''
 }

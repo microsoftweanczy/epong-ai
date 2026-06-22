@@ -286,16 +286,16 @@ export default function ChatApp() {
                 )
               }
               if (json.content) {
-                // If first content chunk, replace the "searching" placeholder
-                if (accumulated === '' && json.searchPerformed === undefined) {
-                  // already showing search text, replace it
-                }
                 accumulated += json.content
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMsg.id ? { ...m, content: accumulated } : m
                   )
                 )
+              }
+              // Provider info — show which API was used
+              if (json.provider) {
+                toast.info(`API: ${json.provider}`, { duration: 2000 })
               }
             } catch {
               /* ignore */
