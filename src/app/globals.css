@@ -147,6 +147,24 @@
 }
 
 /* Enterprise glass material — refined, subtle, professional */
+
+/* ---------- Anthropic Serif — chat & response font ---------- */
+@font-face {
+  font-family: "Anthropic Serif";
+  src: url("/fonts/AnthropicSerif-Text-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Apply Anthropic Serif to all chat message content + composer input.
+   UI chrome (sidebar, header, buttons) keeps the system sans-serif. */
+.font-chat,
+.md-body,
+textarea.font-chat {
+  font-family: "Anthropic Serif", Georgia, "Times New Roman", serif;
+  letter-spacing: 0;
+}
 .glass {
   background-color: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(20px) saturate(150%);
