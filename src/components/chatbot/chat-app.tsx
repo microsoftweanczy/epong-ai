@@ -298,16 +298,8 @@ export default function ChatApp() {
                   )
                 )
               }
-              // Provider info — append to response text (not a popup)
-              if (json.provider) {
-                const providerLabel = `\n\n*— via ${json.provider}*`
-                accumulated += providerLabel
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMsg.id ? { ...m, content: accumulated } : m
-                  )
-                )
-              }
+              // Provider info — removed per user request (no longer shown in chat)
+              // if (json.provider) { ... }
             } catch {
               /* ignore */
             }

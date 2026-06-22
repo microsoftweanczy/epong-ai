@@ -39,7 +39,7 @@ export function Welcome({ userName }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
       {/* Logo */}
-      <div className="mb-6 shadow-xl shadow-indigo-500/30">
+      <div className="mb-6">
         <Logo size={76} />
       </div>
 

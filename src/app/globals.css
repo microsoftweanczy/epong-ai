@@ -146,35 +146,49 @@
   padding-right: env(safe-area-inset-right);
 }
 
-/* Liquid glass material — frosted, saturated, with a subtle specular edge */
+/* Enterprise glass material — refined, subtle, professional */
 .glass {
-  background-color: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
-}
-.glass-dark {
-  background-color: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-.glass-bar {
-  background-color: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* Calm professional backdrop for chat readability */
+.glass-bar {
+  background-color: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Enterprise backdrop — clean, professional, like ChatGPT/Copilot */
 .mesh-bg {
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(at 15% 15%, rgba(99, 102, 241, 0.06) 0px, transparent 50%),
-    radial-gradient(at 85% 85%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
+  background-color: #ffffff;
+}
+
+/* Dark mode overrides for enterprise look */
+.dark .glass {
+  background-color: rgba(30, 30, 30, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .glass-bar {
+  background-color: rgba(20, 20, 20, 0.90);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .mesh-bg {
+  background-color: #1a1a1a;
+}
+
+.dark .app-shell {
+  background: rgba(30, 30, 30, 0.95);
 }
 
 /* iOS-style refined scrollbar */
