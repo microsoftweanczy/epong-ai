@@ -116,7 +116,7 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
               onClick={() => setMode('login')}
               className={`flex-1 rounded-xl px-3 py-2 text-[14px] font-semibold transition ${
                 mode === 'login'
-                  ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-indigo-300'
+                  ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-[#0A84FF]'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -127,7 +127,7 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest }: Props) {
               onClick={() => setMode('signup')}
               className={`flex-1 rounded-xl px-3 py-2 text-[14px] font-semibold transition ${
                 mode === 'signup'
-                  ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-indigo-300'
+                  ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-[#0A84FF]'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >

@@ -282,7 +282,7 @@ export function SettingsPanel({ open, onClose }: Props) {
                   key={m.id}
                   className="group flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/40"
                 >
-                  <span className="mt-0.5 shrink-0 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                  <span className="mt-0.5 shrink-0 rounded-full bg-[#0A84FF]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0A84FF] dark:text-[#0A84FF]">
                     {CATEGORY_LABELS[m.category]}
                   </span>
                   {editingId === m.id ? (
@@ -294,7 +294,7 @@ export function SettingsPanel({ open, onClose }: Props) {
                         if (e.key === 'Enter') handleSaveEdit(m.id)
                         if (e.key === 'Escape') setEditingId(null)
                       }}
-                      className="min-w-0 flex-1 rounded-md bg-white px-2 py-0.5 text-[14px] outline-none ring-1 ring-indigo-300 dark:bg-slate-700 dark:text-slate-100"
+                      className="min-w-0 flex-1 rounded-md bg-white px-2 py-0.5 text-[14px] outline-none ring-1 ring-[#0A84FF] dark:bg-slate-700 dark:text-slate-100"
                     />
                   ) : (
                     <span className="min-w-0 flex-1 text-[14px] text-slate-700 dark:text-slate-200">
@@ -417,7 +417,7 @@ function Section({
   return (
     <section className="mb-6">
       <div className="mb-3 flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0A84FF]/10 text-[#0A84FF] dark:text-[#0A84FF]">
           <Icon className="h-4 w-4" />
         </div>
         <div>
@@ -469,7 +469,7 @@ function SegmentedOptions({
           onClick={() => onChange(opt.value)}
           className={`flex-1 rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
             value === opt.value
-              ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-indigo-300'
+              ? 'bg-white text-[#0A84FF] shadow-sm dark:bg-slate-700 dark:text-[#0A84FF]'
               : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >

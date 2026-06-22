@@ -139,7 +139,7 @@ export function Sidebar({
                         if (e.key === 'Enter') commitEdit()
                         if (e.key === 'Escape') setEditingId(null)
                       }}
-                      className="min-w-0 flex-1 rounded-md bg-white/80 px-1.5 py-0.5 text-sm outline-none ring-1 ring-indigo-300"
+                      className="min-w-0 flex-1 rounded-md bg-white/80 px-1.5 py-0.5 text-sm outline-none ring-1 ring-[#0A84FF]"
                     />
                   ) : (
                     <button

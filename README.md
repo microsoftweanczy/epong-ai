@@ -1,4 +1,4 @@
-# Epong AI — Personal AI Chatbot
+# ManggarAI — Personal AI Chatbot
 
 A beautiful personal AI chatbot with an **iOS 26 "Liquid Glass"** design, powered by **GLM 4.5 Flash**, backed by **Supabase**, and optimized for **Vercel** deployment.
 

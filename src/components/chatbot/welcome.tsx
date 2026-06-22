@@ -51,8 +51,8 @@ export function Welcome({ userName }: Props) {
       {/* Quote — plain text, no bubble */}
       <div className="mt-7 w-full max-w-md">
           <div className="mb-2 flex items-center justify-center gap-2">
-            <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-indigo-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-indigo-400">
+            <QuoteIcon className="h-4 w-4 text-[#0A84FF] dark:text-[#0A84FF]" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0A84FF] dark:text-[#0A84FF]">
               Kata mutiara
             </span>
           </div>

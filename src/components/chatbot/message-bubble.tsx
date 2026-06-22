@@ -151,7 +151,7 @@ function MessageBubbleBase({ message, streaming, canRetry, onRetry, conversation
               {message.content}
             </ReactMarkdown>
             {streaming && (
-              <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-indigo-500/70" />
+              <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-[#0A84FF]/70" />
             )}
           </div>
         )
