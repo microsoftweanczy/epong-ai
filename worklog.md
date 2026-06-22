@@ -834,3 +834,18 @@ Work Log:
 
 Stage Summary:
 - Added a panel hide/show toggle button at the top-left of the app header (desktop only). Click to collapse the sidebar to 0 width, click again to expand. Mobile keeps the hamburger slide-over menu. Smooth width + opacity transition.
+
+---
+Task ID: 33
+Agent: main
+Task: Push to deploy (Vercel)
+
+Work Log:
+- 12 commits ready (Tasks 24-32: image gen, retry, z-image-turbo, shirt icon, GLM primary, no bold, sidebar toggle, etc.). Working tree clean.
+- Pushed: `28b8495..d6a4e75 main -> main` ✓
+- Local + remote in sync at d6a4e75.
+- Lint clean.
+- Vercel will auto-deploy if connected to the repo. Required env vars (already configured per Task 22): NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, GLM_API_KEY (or built-in fallback), QWEN_IMAGE_API_KEY (or built-in fallback).
+
+Stage Summary:
+- Successfully pushed 12 commits to https://github.com/microsoftweanczy/epong-ai.git main. Vercel auto-deploy triggered.
