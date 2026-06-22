@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
@@ -60,49 +60,88 @@ function clearGuest() {
 export function useAuth() {
   // Start with null on both server and client (avoids hydration mismatch).
   // Guest session is loaded in useEffect after hydration.
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUserState] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  // Keep the latest user id in a ref so onAuthStateChange can dedupe
+  // (Supabase fires INITIAL_SESSION + TOKEN_REFRESHED repeatedly with the
+  // same session — without dedupe each event triggers a pointless re-render).
+  const userIdRef = useRef<string | null>(null)
+
+  const applyUser = useCallback((u: AuthUser | null) => {
+    const newId = u?.id ?? null
+    if (newId === userIdRef.current) {
+      // Same user (or both null) — no state change needed.
+      return
+    }
+    userIdRef.current = newId
+    setUserState(u)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
+    let settled = false
+
+    const finish = (u: AuthUser | null) => {
+      if (settled || cancelled) return
+      settled = true
+      applyUser(u)
+      setLoading(false)
+    }
 
     const init = async () => {
       // Check for existing guest session first (client-only, post-hydration)
       const guest = loadGuest()
       if (guest) {
-        if (!cancelled) {
-          setUser(guest)
-          setLoading(false)
-        }
+        finish(guest)
         return
       }
 
       if (!supabase) {
-        if (!cancelled) setLoading(false)
+        finish(null)
         return
       }
 
-      // Get Supabase session
-      const { data } = await supabase.auth.getSession()
-      if (!cancelled) {
-        setUser(normalizeUser(data.session?.user ?? null))
-        setLoading(false)
+      // Race getSession against a timeout — if Supabase is unreachable or
+      // slow (rare but possible), we never want to be stuck on "Memuat…".
+      let timedOut = false
+      const timeout = setTimeout(() => {
+        if (timedOut) return
+        timedOut = true
+        console.warn(
+          '[auth] Supabase getSession timed out after 6s — proceeding unauthenticated.'
+        )
+        finish(null)
+      }, 6000)
+
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (timedOut) return
+        clearTimeout(timeout)
+        finish(normalizeUser(data.session?.user ?? null))
+      } catch (e) {
+        if (timedOut) return
+        clearTimeout(timeout)
+        console.warn('[auth] getSession error:', e)
+        finish(null)
       }
     }
 
     init()
 
-    // Listen for auth changes (login/logout/OAuth callback)
+    // Listen for auth changes (login/logout/OAuth callback).
+    // Dedupe via applyUser so repeated IDENTICAL events don't re-render.
     if (!supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(normalizeUser(session?.user ?? null))
+      applyUser(normalizeUser(session?.user ?? null))
+      // Ensure loading is cleared on any auth event (safety net).
+      setLoading(false)
     })
 
     return () => {
       cancelled = true
       sub.subscription.unsubscribe()
     }
-  }, [])
+  }, [applyUser])
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: { message: 'Auth not configured' } as any }
@@ -132,7 +171,10 @@ export function useAuth() {
       isGuest: true,
     }
     saveGuest(guestUser)
-    setUser(guestUser)
+    // Bypass dedupe: force-update ref + state together.
+    userIdRef.current = guestUser.id
+    setUserState(guestUser)
+    setLoading(false)
   }, [])
 
   const signOut = useCallback(async () => {
@@ -142,7 +184,9 @@ export function useAuth() {
     if (supabase) {
       await supabase.auth.signOut()
     }
-    setUser(null)
+    // Bypass dedupe: force-update ref + state together.
+    userIdRef.current = null
+    setUserState(null)
   }, [])
 
   return {

@@ -229,3 +229,43 @@ Stage Summary:
   - Fixed theme color mismatch (indigo → blue) across layout.tsx + manifest.json.
   - Fixed logo shadow color (indigo → blue) in welcome.tsx + login-screen.tsx.
 - Verified end-to-end on both viewports with Agent Browser + VLM. Ready for use.
+
+---
+Task ID: 16
+Agent: main
+Task: Fix looping and stuck loading screen when opening the app
+
+Work Log:
+- Root-caused TWO issues:
+  1. **Service Worker stale-cache loop (primary cause)**: public/sw.js was caching ALL Next.js Turbopack chunks (filenames contain content hashes like `_4c9d45d3._.js`). After every code edit, Turbopack generates new chunk hashes, but the SW served the OLD cached index.html which referenced OLD chunk URLs → 404s → React never hydrated → stuck "Memuat…" spinner / reload loop. Verified by inspecting cache: 27 entries including `/_next/static/chunks/...` files.
+  2. **Auth init could hang**: useAuth's `supabase.auth.getSession()` had no timeout — if Supabase was slow/unreachable, `authLoading` stayed true forever → stuck loading screen. Also `onAuthStateChange` fired `INITIAL_SESSION` + `TOKEN_REFRESHED` repeatedly, each calling setUser with a NEW object (via normalizeUser) → render churn.
+
+- **Fixed public/sw.js** (rewrote completely):
+  - Bumped cache version `epong-ai-v1` → `epong-ai-v2` (old caches auto-deleted on activate).
+  - Navigations (HTML): NETWORK-FIRST — always fetch fresh HTML; only fall back to cache when offline. This is the critical fix: the HTML now always references current chunk hashes.
+  - Next.js chunks (`/_next/static/chunks/`): NOT INTERCEPTED at all. Turbopack already serves them with immutable Cache-Control + content-hashed filenames; SW caching them was pure harm.
+  - API routes (`/api/`): NOT INTERCEPTED (real-time data).
+  - Cross-origin requests: NOT INTERCEPTED (Supabase, etc.).
+  - Static brand assets (`/icons/`, manifest, logo.svg): CACHE-FIRST (truly immutable).
+  - Posts `SW_UPDATED` message to clients on activate.
+  - Verified cache after fix: only 5 entries (manifest + 4 icons). Zero `_next` chunks. Zero HTML.
+
+- **Hardened src/lib/auth.ts**:
+  - Added 6-second timeout to `supabase.auth.getSession()` — if it doesn't resolve, logs a warning and proceeds unauthenticated. App NEVER gets stuck on "Memuat…" anymore.
+  - Added `applyUser` dedupe: tracks `userIdRef`; skips `setUserState` when the user id is unchanged. Supabase's repeated `INITIAL_SESSION`/`TOKEN_REFRESHED` events no longer cause pointless re-renders.
+  - `signInAsGuest` + `signOut` bypass dedupe by directly setting both ref + state (so they always take effect).
+  - Safety net: `onAuthStateChange` callback also calls `setLoading(false)` so any auth event clears the loading screen.
+
+- Verified end-to-end with Agent Browser:
+  * Fresh browser (cleared storage + unregistered old SW + deleted all caches) → opened app → login screen renders immediately (3s), no stuck loading.
+  * Guest login → welcome screen → reload page → welcome screen renders immediately (4s). Previously this was the stuck/looping scenario — now fixed.
+  * No-guest/no-session path → login screen renders in 3s, "Memuat…" check returns "LOADED OK".
+  * Mobile viewport (iPhone 14) → same: login renders immediately, "OK".
+  * Console clean (only React DevTools info + HMR connected). No errors.
+  * Dev log: all 200s, no runtime errors.
+
+Stage Summary:
+- Stuck loading + looping on app open FIXED. Two root causes addressed:
+  1. Service Worker no longer caches HTML or Next.js chunks — network-first navigations guarantee fresh HTML on every page load. Cache version bumped to purge all old stale caches automatically.
+  2. Auth init has a 6s timeout + event dedupe — Supabase slowness or repeated auth events can never freeze the loading screen again.
+- Verified on both desktop + mobile viewports with fresh browser state. App opens cleanly every time.
