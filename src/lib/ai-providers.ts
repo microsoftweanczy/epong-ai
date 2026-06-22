@@ -30,7 +30,7 @@ const M_LLAMA = 'meta/llama-3.3-70b-instruct'
 // ── GLM via DashScope — fallback ──
 const GLM_BASE = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 const GLM_MODEL = 'qwen3.6-flash'
-const GLM_KEY = 'sk-ws-H.IYYPHR.dM6s.MEUCID8hSB15TQhZO_RutoErcWE0dXcb5lmQKeeyc319DpGbAiEA4sHr-BtPdLPDyi6TBfqCUNREaPSpusiiUoRxFBDycWM'
+const GLM_KEY = 'REDACTED'
 
 // ── OpenRouter — fallback (optional) ──
 const OR_BASE = 'https://openrouter.ai/api/v1'
