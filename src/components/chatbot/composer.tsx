@@ -45,7 +45,7 @@ export function Composer({ onSend, onStop, busy }: Props) {
             rows={1}
             placeholder="Tulis pesan untuk Epong AI…"
             enterKeyHint="send"
-            className="max-h-36 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-[1.5] tracking-[-0.01em] text-slate-900 outline-none placeholder:text-slate-500 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-400"
+            className="font-chat max-h-36 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-[1.5] text-slate-900 outline-none placeholder:text-slate-500 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-400"
           />
         </div>
         {busy ? (

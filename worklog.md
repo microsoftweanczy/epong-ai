@@ -423,3 +423,33 @@ Work Log:
 Stage Summary:
 - All 8 requested tasks completed: retry feature ✓, copy feature ✓, improved realtime API (singleton + retry + better parsing) ✓, default theme light ✓, fixed loading screen (timeouts on all async ops) ✓, removed unused code (8 items) ✓, improved welcome page (suggestion chips + lazy conversation creation) ✓, scanned app (5 TS errors + 6 redundancies fixed).
 - Bonus critical fix: memory + behaviorProfile were stored but NEVER sent to the AI — now injected into the system prompt. The "memory" feature actually works now.
+
+---
+Task ID: 20
+Agent: main
+Task: Use AnthropicSerif font for chat responses and chat input
+
+Work Log:
+- Copied /home/z/my-project/upload/AnthropicSerif-Text-Regular-Static.otf → public/fonts/AnthropicSerif-Text-Regular.otf
+- Added @font-face declaration in globals.css:
+  @font-face {
+    font-family: "Anthropic Serif";
+    src: url("/fonts/AnthropicSerif-Text-Regular.otf") format("opentype");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+- Created a `.font-chat` utility class that applies `font-family: "Anthropic Serif", Georgia, "Times New Roman", serif` with `letter-spacing: 0` (serif fonts don't need the -0.01em tightening that sans-serif does).
+- Applied the font to:
+  * User message bubble (message-bubble.tsx): added `font-chat` class to the user bubble div
+  * Assistant message bubble (message-bubble.tsx): the `.md-body` class already gets the serif font via the CSS rule `.md-body { font-family: "Anthropic Serif", ... }`
+  * Composer textarea (composer.tsx): added `font-chat` class + removed the `tracking-[-0.01em]` (serif doesn't need it)
+- UI chrome (sidebar, header, buttons, login screen, settings) keeps the system sans-serif (SF Pro / system-ui) — only chat content + input use the serif font. This creates a clear typographic distinction between UI and conversation.
+
+- Verified:
+  * Font served: HTTP 200, 69112 bytes, content-type `font/otf`
+  * Browser `document.fonts.check()` → "FONT LOADED" (not falling back to Georgia)
+  * Computed font-family on all 3 elements (user bubble, assistant bubble, composer textarea) → `"Anthropic Serif", Georgia, "Times New Roman", serif`
+  * VLM visual review confirmed: "Both the user message bubble and AI response text use a serif font with small decorative strokes at letter ends. Readable, balancing classic formality with clear legibility."
+  * No console errors. Lint clean.
+
+Stage Summary:
+- Anthropic Serif font is now used for all chat content: user messages, AI responses, and the composer input. UI chrome stays sans-serif for clarity. Font loads correctly (verified via document.fonts.check) and renders visually as a serif typeface.
