@@ -431,20 +431,20 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
           )}
         </div>
       </div>
-      {/* Image mode toggle — small shirt icon below the input box */}
-      <div className="mx-auto mt-1.5 flex w-full max-w-3xl items-center justify-center gap-2 lg:max-w-4xl">
+      {/* Image mode toggle — positioned at bottom-left below the input box */}
+      <div className="mx-auto mt-1.5 flex w-full max-w-3xl items-center justify-start gap-2 pl-1 lg:max-w-4xl">
         <button
           onClick={onToggleMode}
           aria-label={isImageMode ? 'Beralih ke mode chat' : 'Beralih ke mode gambar'}
           title={isImageMode ? 'Mode Gambar aktif — klik untuk kembali ke Chat' : 'Klik untuk membuat Gambar'}
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition active:scale-95 ${
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition active:scale-95 ${
             isImageMode
               ? 'bg-[#0A84FF] text-white shadow-sm'
-              : 'text-slate-400 hover:text-[#0A84FF] hover:bg-slate-900/5 dark:hover:bg-white/10'
+              : 'text-slate-500 hover:text-[#0A84FF] hover:bg-slate-900/5 dark:text-slate-400 dark:hover:bg-white/10'
           }`}
         >
-          <Shirt className="h-3.5 w-3.5" />
-          <span>{isImageMode ? 'Mode Gambar aktif' : 'Buat Gambar'}</span>
+          <Shirt className="h-4 w-4" />
+          <span>{isImageMode ? 'Mode Gambar' : 'Buat Gambar'}</span>
         </button>
       </div>
       {/* Mode hint banner */}
