@@ -27,7 +27,9 @@ export default function ChatApp() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [chatMode, setChatMode] = useState<'chat' | 'image'>('chat')
 
   // ---- auth ----
   const {
@@ -465,6 +467,8 @@ export default function ChatApp() {
           onSend={handleSend}
           onStop={handleStop}
           busy={streamingId !== null}
+          mode={chatMode}
+          onToggleMode={() => setChatMode((m) => (m === 'chat' ? 'image' : 'chat'))}
         />
       </main>
 
