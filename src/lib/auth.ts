@@ -212,10 +212,25 @@ export function useAuth() {
       isGuest: true,
     }
     saveGuest(guestUser)
-    // Bypass dedupe: force-update ref + state together.
     userIdRef.current = guestUser.id
     setUserState(guestUser)
     setLoading(false)
+  }, [])
+
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) return { error: { message: 'Auth not configured' } as any }
+    clearGuest()
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        },
+      })
+      return { error }
+    } catch (e: any) {
+      return { error: { message: e?.message || 'Gagal masuk dengan Google' } as any }
+    }
   }, [])
 
   const signOut = useCallback(async () => {
@@ -235,6 +250,7 @@ export function useAuth() {
     loading,
     signInWithEmail,
     signUpWithEmail,
+    signInWithGoogle,
     signInAsGuest,
     signOut,
   }

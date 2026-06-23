@@ -99,31 +99,36 @@ interface IntentResult {
   reason?: string
 }
 
-const INTENT_TIMEOUT_MS = 4000
+const INTENT_TIMEOUT_MS = 6000
 
-const INTENT_SYSTEM_PROMPT = `You are an intent classifier for a chat assistant. Your job: decide whether the user's latest message needs CURRENT/REALTIME information from the web to answer accurately.
+const INTENT_SYSTEM_PROMPT = `Kamu adalah classifier intent untuk asisten chat. Tentukan apakah pesan user butuh informasi REALTIME/TERKINI dari internet.
 
-Reply ONLY with a compact JSON object, no markdown, no explanation:
-{"needRealtime": true/false, "query": "optimized search query or empty string", "reason": "one short reason"}
+Balas HANYA JSON, tanpa markdown:
+{"needRealtime": true/false, "query": "query pencarian optimal atau kosong", "reason": "alasan singkat"}
 
-Rules for needRealtime = true:
-- Asks about current events, news, weather, prices, exchange rates, stock/crypto, sports scores, schedules
-- Asks "who is the current X" / "siapa X sekarang" (roles that change: president, minister, champion, CEO)
-- Mentions today, yesterday, this week, latest, newest, now, current, recent
-- Asks about releases, versions, launches, updates
-- Asks about trending / viral topics
-- Needs data that changes over time (population, statistics, rankings)
-- Compares products/services/prices (need current data)
+needRealtime = true jika:
+- Bertanya tentang event/peristiwa terkini, berita, cuaca, harga, kurs, saham, crypto, skor, jadwal
+- Bertanya "siapa X sekarang" (presiden, menteri, juara, CEO — posisi yang berubah)
+- Menyebut: hari ini, kemarin, minggu ini, terbaru, terkini, sekarang, saat ini, kini, baru saja
+- Bertanya tentang rilis, versi, launch, update terbaru
+- Bertanya tentang trending, viral, populer saat ini
+- Butuh data yang berubah seiring waktu (populasi, statistik, peringkat, ranking)
+- Membandingkan produk/layanan/harga (butuh data terkini)
+- Bertanya tentang tokoh/profil orang publik saat ini
+- Menyebut tahun berjalan (2025, 2026, dll)
 
-Rules for needRealtime = false:
-- General knowledge that doesn't change (math, history before 2020, science, grammar, definitions)
-- Personal opinions, creative writing, coding help, advice
-- Questions about the assistant itself
-- Casual conversation / greetings / thanks
+needRealtime = false jika:
+- Pengetahuan umum yang tidak berubah (matematika, sejarah, sains, tata bahasa, definisi)
+- Opini pribadi, tulisan kreatif, bantuan kode, saran
+- Pertanyaan tentang asisten itu sendiri
+- Obrolan santai, sapaan, terima kasih
+- Pertanyaan yang bisa dijawab dari pengetahuan umum LLM
 
-If needRealtime=true, "query" MUST be a concise search query in the user's language (English or Indonesian), optimized for a web search engine. Extract the core information need. Example: user asks "Berapa harga iPhone 15 sekarang?" → query: "harga iPhone 15 terbaru 2024"
+Jika needRealtime=true, "query" HARUS berupa query pencarian singkat dalam bahasa user (Indonesia/Inggris), dioptimalkan untuk Google Search. Ekstrak inti kebutuhan informasi.
+Contoh: "Berapa harga iPhone 15 sekarang?" → query: "harga iPhone 15 terbaru 2026"
+Contoh: "Siapa presiden Indonesia?" → query: "presiden Indonesia 2026"
 
-Current date: ${new Date().toISOString().split('T')[0]}`
+Tanggal hari ini: ${new Date().toISOString().split('T')[0]}`
 
 async function detectIntentLLM(
   messages: ApiMessage[]
@@ -136,12 +141,12 @@ async function detectIntentLLM(
       { role: 'system', content: INTENT_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `User's latest message: "${lastUser.content.slice(0, 500)}"\n\nClassify the intent.`,
+        content: `Pesan user: "${lastUser.content.slice(0, 500)}"\n\nKlasifikasikan intent.`,
       },
     ]
 
-    const raw = await withTimeout(completeChat(intentMessages), INTENT_TIMEOUT_MS)
-    if (!raw) return null
+    const { text: raw } = await withTimeout(completeChat(intentMessages), INTENT_TIMEOUT_MS)
+    if (!raw || raw.trim().length < 5) return null
 
     // Extract JSON from response (handle markdown-wrapped or plain)
     const jsonMatch = raw.match(/\{[\s\S]*\}/)
@@ -201,6 +206,8 @@ async function performSerperSearch(query: string): Promise<{ results: SearchResu
       body: JSON.stringify({
         q: query,
         num: 5,
+        gl: 'id',    // Indonesia geolocation
+        hl: 'id',    // Indonesian language
       }),
     }),
     SEARCH_TIMEOUT_MS
