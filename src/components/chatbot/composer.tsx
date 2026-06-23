@@ -432,9 +432,10 @@ export function Composer({ onSend, onStop, busy, mode, onToggleMode }: Props) {
         </div>
       </div>
       {/* Image mode toggle — positioned at bottom-left below the input box */}
-      <div className="mx-auto mt-1.5 flex w-full max-w-3xl items-center justify-start gap-2 pl-1 lg:max-w-4xl">
+      <div className="relative z-10 mx-auto mt-1.5 flex w-full max-w-3xl items-center justify-start gap-2 pl-1 lg:max-w-4xl">
         <button
           onClick={onToggleMode}
+          type="button"
           aria-label={isImageMode ? 'Beralih ke mode chat' : 'Beralih ke mode gambar'}
           title={isImageMode ? 'Mode Gambar aktif — klik untuk kembali ke Chat' : 'Klik untuk membuat Gambar'}
           className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition active:scale-95 ${
