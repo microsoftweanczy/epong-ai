@@ -159,13 +159,17 @@ async function detectIntentLLM(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Web search + page reading via z-ai SDK (with retry)
+// Web search + page reading
+// Primary: Tavily AI (purpose-built for AI agents, high accuracy)
+// Fallback: z-ai SDK (built-in, no key needed)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SEARCH_TIMEOUT_MS = 6000
+const SEARCH_TIMEOUT_MS = 8000
 const PAGE_READ_TIMEOUT_MS = 5000
 const MAX_PAGES_TO_READ = 2
 const SEARCH_RETRIES = 2
+
+const TAVILY_ENDPOINT = 'https://api.tavily.com/search'
 
 interface SearchResult {
   url: string
@@ -182,7 +186,46 @@ interface PageContent {
   publishedTime?: string
 }
 
-async function performWebSearch(query: string): Promise<SearchResult[]> {
+/** Tavily search — primary (requires TAVILY_API_KEY env var) */
+async function performTavilySearch(query: string): Promise<{ results: SearchResult[]; answer: string }> {
+  const apiKey = process.env.TAVILY_API_KEY
+  if (!apiKey) throw new Error('No Tavily API key')
+
+  const res = await withTimeout(
+    fetch(TAVILY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: 'advanced',
+        include_answer: true,
+        max_results: 5,
+      }),
+    }),
+    SEARCH_TIMEOUT_MS
+  )
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`Tavily ${res.status}: ${t.slice(0, 200)}`)
+  }
+
+  const data = await res.json()
+  const answer: string = data?.answer || ''
+  const results: SearchResult[] = (data?.results || []).map((r: any) => ({
+    url: r.url || '',
+    name: r.title || '',
+    snippet: r.content || '',
+    host_name: r.url ? new URL(r.url).hostname : '',
+    date: r.published_date || r.score?.toString() || '',
+  }))
+
+  return { results, answer }
+}
+
+/** z-ai SDK search — fallback (no API key needed) */
+async function performZAISearch(query: string): Promise<SearchResult[]> {
   for (let attempt = 1; attempt <= SEARCH_RETRIES; attempt++) {
     try {
       const zai = await getZAI()
@@ -193,23 +236,39 @@ async function performWebSearch(query: string): Promise<SearchResult[]> {
       if (Array.isArray(results) && results.length > 0) {
         return results as SearchResult[]
       }
-      // Empty results — retry once with a simplified query
       if (attempt < SEARCH_RETRIES) {
         const simplified = query.slice(0, 60).trim()
-        if (simplified && simplified !== query) {
-          continue
-        }
+        if (simplified && simplified !== query) continue
       }
       return []
     } catch {
       if (attempt >= SEARCH_RETRIES) return []
-      // Wait briefly before retry
       await new Promise((r) => setTimeout(r, 300))
     }
   }
   return []
 }
 
+/** Unified search: Tavily primary, z-ai SDK fallback */
+async function performWebSearch(query: string): Promise<{ results: SearchResult[]; answer: string }> {
+  // Try Tavily first
+  if (process.env.TAVILY_API_KEY) {
+    try {
+      const tavilyResult = await performTavilySearch(query)
+      if (tavilyResult.results.length > 0) {
+        return tavilyResult
+      }
+    } catch (e: any) {
+      console.error('[realtime] Tavily search failed:', e?.message)
+    }
+  }
+
+  // Fallback to z-ai SDK
+  const results = await performZAISearch(query)
+  return { results, answer: '' }
+}
+
+/** Read a page for deeper context — uses z-ai SDK page_reader */
 async function readPage(url: string): Promise<PageContent | null> {
   try {
     const zai = await getZAI()
@@ -219,7 +278,6 @@ async function readPage(url: string): Promise<PageContent | null> {
     )
     const data = result?.data || result
     if (!data) return null
-    // Strip HTML tags to get plain text, cap length
     const text = stripHtml(data.html || data.text || '').slice(0, 2000)
     if (text.length < 50) return null
     return {
@@ -260,6 +318,7 @@ export interface RealtimeContext {
   sourceCount: number
   pagesRead: number
   failed: boolean
+  answer?: string // Tavily's built-in answer generation
 }
 
 const EMPTY_CTX: RealtimeContext = {
@@ -270,6 +329,7 @@ const EMPTY_CTX: RealtimeContext = {
   sourceCount: 0,
   pagesRead: 0,
   failed: false,
+  answer: '',
 }
 
 function buildSearchQuery(userMessage: string, intentQuery: string): string {
@@ -314,8 +374,8 @@ export async function gatherRealtimeContext(
   // Step 2: Build optimal search query
   const finalQuery = buildSearchQuery(lastUser.content, query)
 
-  // Step 3: Perform web search (with retry)
-  const searchResults = await performWebSearch(finalQuery)
+  // Step 3: Perform web search (Tavily primary, z-ai SDK fallback)
+  const { results: searchResults, answer: searchAnswer } = await performWebSearch(finalQuery)
 
   if (searchResults.length === 0) {
     return {
@@ -326,6 +386,7 @@ export async function gatherRealtimeContext(
       sourceCount: 0,
       pagesRead: 0,
       failed: true,
+      answer: searchAnswer,
     }
   }
 
@@ -347,6 +408,7 @@ export async function gatherRealtimeContext(
     sourceCount: searchResults.length,
     pagesRead: pageContents.length,
     failed: false,
+    answer: searchAnswer,
   }
 }
 
@@ -367,6 +429,13 @@ export function buildRealtimePrompt(ctx: RealtimeContext): string {
     `Current date: ${today}`,
     '',
   ]
+
+  // Tavily's built-in answer (if available — high quality, AI-generated)
+  if (ctx.answer) {
+    parts.push('--- AI-Generated Answer ---')
+    parts.push(ctx.answer)
+    parts.push('')
+  }
 
   // Search result snippets (always included)
   parts.push('--- Search Results ---')
