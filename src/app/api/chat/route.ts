@@ -3,6 +3,7 @@ import type { ApiMessage } from '@/lib/types'
 import { streamChat } from '@/lib/ai-providers'
 import type { Preferences, MemoryNote } from '@/lib/settings'
 import { buildMemoryPrompt } from '@/lib/memory-engine'
+import { gatherRealtimeContext, buildRealtimePrompt } from '@/lib/realtime'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,52 +12,25 @@ export const maxDuration = 60
 /**
  * Streaming chat completion endpoint.
  *
- * Response: Server-Sent Events stream:
- *   data: {"content":"hello"}\n\n
- *   data: [DONE]\n\n
+ * Uses:
+ * - Smart routing (ai-providers.ts) for model selection
+ * - Realtime engine (realtime.ts) for web search when needed
+ * - Memory engine (memory-engine.ts) for personalized context
+ *
+ * Response: Server-Sent Events stream
  */
 
-// Keywords that suggest the user needs real-time data
-const REALTIME_PATTERNS = [
-  /terbaru|terkini|hari ini|sekarang|saat ini|kini|baru saja|kemarin/i,
-  /latest|today|current|recent|right now|yesterday/i,
-  /berita|news|update|pengumuman/i,
-  /harga|price|cuaca|weather|saham|stock|bitcoin|crypto|kurs/i,
-  /jadwal|schedule|result|hasil|skor|score|pertandingan/i,
-  /trending|viral|populer/i,
-  /\b202[4-9]\b/i,
-  /apa yang sedang|what.*happening/i,
-  /status terbaru|kondisi sekarang|perkembangan/i,
-]
-
-function needsWebSearch(text: string): boolean {
-  return REALTIME_PATTERNS.some((p) => p.test(text))
-}
-
-async function quickWebSearch(query: string): Promise<string> {
-  try {
-    const ZAIModule = await import('z-ai-web-dev-sdk')
-    const ZAI = ZAIModule.default
-    const zai = await ZAI.create()
-    const results = await zai.functions.invoke('web_search', { query, num: 3 })
-    if (!Array.isArray(results) || results.length === 0) return ''
-    return results
-      .map((r: any, i: number) => `${i + 1}. ${r.name}\n   ${r.snippet || ''}\n   Sumber: ${r.url}`)
-      .join('\n\n')
-  } catch {
-    return ''
-  }
+interface ChatRequestBody {
+  messages?: ApiMessage[]
+  prefs?: Preferences | null
+  memory?: MemoryNote[]
+  behaviorProfile?: string
+  relationshipDepth?: number
+  emotionalProfile?: string
 }
 
 export async function POST(req: NextRequest) {
-  let body: {
-    messages?: ApiMessage[]
-    prefs?: Preferences | null
-    memory?: MemoryNote[]
-    behaviorProfile?: string
-    relationshipDepth?: number
-    emotionalProfile?: string
-  }
+  let body: ChatRequestBody
   try {
     body = await req.json()
   } catch {
@@ -67,14 +41,14 @@ export async function POST(req: NextRequest) {
   const lastUserMsg = [...incoming].reverse().find((m) => m.role === 'user')
   const userQuery = lastUserMsg?.content || ''
 
-  // Build system instruction with memory engine
+  // ── 1. Build system instruction with memory engine ──
   const systemInstruction = buildInstruction(
     body.prefs,
     body.memory,
     body.behaviorProfile
   )
 
-  // Inject hierarchical memory via memory engine
+  // ── 2. Inject hierarchical memory via memory engine ──
   const memoryPrompt = buildMemoryPrompt(
     body.memory || [],
     userQuery,
@@ -83,40 +57,37 @@ export async function POST(req: NextRequest) {
     body.behaviorProfile || ''
   )
 
-  // Check if web search needed
-  let searchContext = ''
-  let searchFailed = false
+  // ── 3. Realtime web search (if needed) via realtime engine ──
+  // gatherRealtimeContext uses LLM-based intent detection (primary)
+  // + regex fallback. It performs web_search + page_reader for deep context.
+  const realtimeCtx = await gatherRealtimeContext(incoming)
+  const realtimePrompt = buildRealtimePrompt(realtimeCtx)
 
-  if (lastUserMsg && needsWebSearch(lastUserMsg.content)) {
-    searchContext = await Promise.race([
-      quickWebSearch(lastUserMsg.content),
-      new Promise<string>((resolve) => setTimeout(() => resolve(''), 5000)),
-    ])
-    if (!searchContext) searchFailed = true
-  }
-
-  // Combine: system instruction + memory + search context
-  const parts = [systemInstruction, memoryPrompt]
-  if (searchContext) {
-    parts.push(`\n\nHASIL PENCARIAN WEB REALTIME:\n${searchContext}\nGunakan data ini. Sebut sumbernya. Tanggal: ${new Date().toISOString().split('T')[0]}`)
-  } else if (searchFailed) {
-    parts.push('\n\nCATATAN: Pencarian web gagal. Jangan gunakan data lama untuk hal terkini. Katakan: "Maaf, pencarian internet bermasalah, coba lagi."')
-  }
-  const fullSystem = parts.filter(Boolean).join('')
+  // ── 4. Combine all context ──
+  const fullSystem = [systemInstruction, memoryPrompt, realtimePrompt]
+    .filter(Boolean)
+    .join('')
 
   const messages: ApiMessage[] = [
     { role: 'system', content: fullSystem },
     ...incoming.slice(-20),
   ]
 
+  // ── 5. Stream response ──
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
 
-      if (searchContext) {
-        send({ searchPerformed: true })
+      // Notify frontend that a search is happening
+      if (realtimeCtx.performed) {
+        send({
+          searchPerformed: true,
+          sources: realtimeCtx.sourceCount,
+          pagesRead: realtimeCtx.pagesRead,
+          query: realtimeCtx.query,
+        })
       }
 
       const result = await streamChat(messages, (delta) =>
@@ -186,7 +157,6 @@ function buildInstruction(
     '=== KONTEKS PENGGUNA ===',
   ]
 
-  // Inject memory
   if (memory && memory.length > 0) {
     parts.push('Hal-hal yang kamu ingat tentang user:')
     for (const m of memory.slice(0, 15)) {
@@ -197,7 +167,6 @@ function buildInstruction(
     parts.push('(Belum ada memori tentang user. Pelajari dari percakapan.)')
   }
 
-  // Inject behavior profile
   if (behaviorProfile && behaviorProfile.trim()) {
     parts.push('')
     parts.push('=== PROFIL PERILAKU USER ===')
@@ -205,7 +174,6 @@ function buildInstruction(
     parts.push('Sesuaikan gaya komunikasi dengan profil ini.')
   }
 
-  // Prefs
   parts.push('')
   const toneMap: Record<string, string> = {
     santai: 'Gaya: santai banget, kayak temen. Pakai "kamu" atau "aku".',
