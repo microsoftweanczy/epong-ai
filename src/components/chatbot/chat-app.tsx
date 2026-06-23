@@ -176,9 +176,131 @@ export default function ChatApp() {
     [store]
   )
 
+  // ---- generate an image (image mode) ----
+  const handleGenerateImage = useCallback(
+    async (prompt: string) => {
+      const incognito = useIncognito.getState().enabled
+      if (!incognito && !store) return
+
+      let convId = activeId
+      if (!incognito && !convId) {
+        const title = prompt.slice(0, TITLE_MAX_LENGTH).trim() || NEW_CHAT_TITLE
+        try {
+          const conv = await store!.createConversation(title)
+          convId = conv.id
+          setConversations((prev) => [conv, ...prev])
+          skipNextLoad.current = true
+          setActiveId(conv.id)
+        } catch (e) {
+          console.error(e)
+          return
+        }
+      }
+      if (!convId) convId = 'incognito-session'
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        conversationId: convId,
+        role: 'user',
+        content: prompt,
+        createdAt: new Date().toISOString(),
+      }
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        conversationId: convId,
+        role: 'assistant',
+        content: '🎨 Membuat gambar... (mohon tunggu)',
+        createdAt: new Date().toISOString(),
+      }
+
+      setMessages((prev) => [...prev, userMsg, assistantMsg])
+      setStreamingId(assistantMsg.id)
+
+      if (!incognito) {
+        store!.addMessage(convId, 'user', prompt).catch((e) => console.error(e))
+      }
+
+      const MAX_RETRIES = 2
+      let lastError: any = null
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        const controller = new AbortController()
+        abortRef.current = controller
+        const timeout = setTimeout(() => controller.abort(), 90_000)
+
+        try {
+          const res = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+            signal: controller.signal,
+          })
+          clearTimeout(timeout)
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.error || `Request failed (${res.status})`)
+          }
+
+          const data = await res.json()
+          if (data.image) {
+            const imageContent = `![${prompt}](${data.image})`
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id ? { ...m, content: imageContent } : m
+              )
+            )
+            if (!incognito) {
+              await store!.addMessage(convId, 'assistant', imageContent)
+              refreshConvos()
+            }
+            lastError = null
+            break
+          } else {
+            throw new Error(data.error || 'No image in response')
+          }
+        } catch (e: any) {
+          clearTimeout(timeout)
+          lastError = e
+          if (e.name === 'AbortError') break
+          if (attempt < MAX_RETRIES) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id
+                  ? { ...m, content: `🎨 Mencoba lagi... (${attempt + 1}/${MAX_RETRIES})` }
+                  : m
+              )
+            )
+            await new Promise((r) => setTimeout(r, 1000))
+          }
+        }
+      }
+
+      if (lastError) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsg.id
+              ? { ...m, content: `*(Gagal membuat gambar: ${lastError.message})*` }
+              : m
+          )
+        )
+      }
+
+      setStreamingId(null)
+      abortRef.current = null
+    },
+    [activeId, store, refreshConvos]
+  )
+
   // ---- send a message (with streaming) ----
   const handleSend = useCallback(
     async (text: string) => {
+      // Branch: image generation mode
+      if (chatMode === 'image') {
+        handleGenerateImage(text)
+        return
+      }
+
       // Incognito mode: no storage at all — pure in-memory chat
       const incognito = useIncognito.getState().enabled
 
@@ -358,7 +480,7 @@ export default function ChatApp() {
         abortRef.current = null
       }
     },
-    [activeId, messages, store, refreshConvos, prefs, memory, addMemory]
+    [activeId, messages, store, refreshConvos, prefs, memory, addMemory, chatMode, handleGenerateImage]
   )
 
   const handleStop = useCallback(() => {
