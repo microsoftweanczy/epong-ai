@@ -160,7 +160,7 @@ async function detectIntentLLM(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Web search + page reading
-// Primary: Tavily AI (purpose-built for AI agents, high accuracy)
+// Primary: Serper.dev (Google Search API — super accurate, 1-2s)
 // Fallback: z-ai SDK (built-in, no key needed)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ const PAGE_READ_TIMEOUT_MS = 5000
 const MAX_PAGES_TO_READ = 2
 const SEARCH_RETRIES = 2
 
-const TAVILY_ENDPOINT = 'https://api.tavily.com/search'
+const SERPER_ENDPOINT = 'https://google.serper.dev/search'
 
 interface SearchResult {
   url: string
@@ -186,21 +186,21 @@ interface PageContent {
   publishedTime?: string
 }
 
-/** Tavily search — primary (requires TAVILY_API_KEY env var) */
-async function performTavilySearch(query: string): Promise<{ results: SearchResult[]; answer: string }> {
-  const apiKey = process.env.TAVILY_API_KEY
-  if (!apiKey) throw new Error('No Tavily API key')
+/** Serper.dev search — primary (requires SERPER_API_KEY env var) */
+async function performSerperSearch(query: string): Promise<{ results: SearchResult[]; answer: string }> {
+  const apiKey = process.env.SERPER_API_KEY
+  if (!apiKey) throw new Error('No Serper API key')
 
   const res = await withTimeout(
-    fetch(TAVILY_ENDPOINT, {
+    fetch(SERPER_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        api_key: apiKey,
-        query,
-        search_depth: 'advanced',
-        include_answer: true,
-        max_results: 5,
+        q: query,
+        num: 5,
       }),
     }),
     SEARCH_TIMEOUT_MS
@@ -208,18 +208,52 @@ async function performTavilySearch(query: string): Promise<{ results: SearchResu
 
   if (!res.ok) {
     const t = await res.text().catch(() => '')
-    throw new Error(`Tavily ${res.status}: ${t.slice(0, 200)}`)
+    throw new Error(`Serper ${res.status}: ${t.slice(0, 200)}`)
   }
 
   const data = await res.json()
-  const answer: string = data?.answer || ''
-  const results: SearchResult[] = (data?.results || []).map((r: any) => ({
-    url: r.url || '',
-    name: r.title || '',
-    snippet: r.content || '',
-    host_name: r.url ? new URL(r.url).hostname : '',
-    date: r.published_date || r.score?.toString() || '',
-  }))
+
+  // Serper returns: knowledgeGraph (optional), organic (search results), news, etc.
+  const answer: string = data?.knowledgeGraph?.description || data?.answerBox?.answer || data?.answerBox?.snippet || ''
+  
+  const results: SearchResult[] = []
+  
+  // Knowledge graph (if available — like Google's info box)
+  if (data?.knowledgeGraph) {
+    results.push({
+      url: data.knowledgeGraph.website || data.knowledgeGraph.descriptionLink || '',
+      name: data.knowledgeGraph.title || '',
+      snippet: data.knowledgeGraph.description || '',
+      host_name: data.knowledgeGraph.website ? new URL(data.knowledgeGraph.website).hostname : '',
+      date: '',
+    })
+  }
+
+  // Organic search results
+  if (Array.isArray(data?.organic)) {
+    for (const r of data.organic) {
+      results.push({
+        url: r.link || '',
+        name: r.title || '',
+        snippet: r.snippet || '',
+        host_name: r.link ? new URL(r.link).hostname : '',
+        date: r.date || '',
+      })
+    }
+  }
+
+  // News results (if available — adds realtime freshness)
+  if (Array.isArray(data?.news)) {
+    for (const r of data.news.slice(0, 2)) {
+      results.push({
+        url: r.link || '',
+        name: `[News] ${r.title || ''}`,
+        snippet: r.snippet || '',
+        host_name: r.link ? new URL(r.link).hostname : '',
+        date: r.date || '',
+      })
+    }
+  }
 
   return { results, answer }
 }
@@ -249,17 +283,17 @@ async function performZAISearch(query: string): Promise<SearchResult[]> {
   return []
 }
 
-/** Unified search: Tavily primary, z-ai SDK fallback */
+/** Unified search: Serper primary, z-ai SDK fallback */
 async function performWebSearch(query: string): Promise<{ results: SearchResult[]; answer: string }> {
-  // Try Tavily first
-  if (process.env.TAVILY_API_KEY) {
+  // Try Serper.dev first (Google results — super accurate)
+  if (process.env.SERPER_API_KEY) {
     try {
-      const tavilyResult = await performTavilySearch(query)
-      if (tavilyResult.results.length > 0) {
-        return tavilyResult
+      const serperResult = await performSerperSearch(query)
+      if (serperResult.results.length > 0) {
+        return serperResult
       }
     } catch (e: any) {
-      console.error('[realtime] Tavily search failed:', e?.message)
+      console.error('[realtime] Serper search failed:', e?.message)
     }
   }
 
